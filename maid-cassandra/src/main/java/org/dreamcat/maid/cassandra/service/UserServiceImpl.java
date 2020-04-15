@@ -1,6 +1,6 @@
 package org.dreamcat.maid.cassandra.service;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.common.web.util.BeanCopierUtil;
 import org.dreamcat.maid.api.controller.user.CreateUserQuery;
@@ -18,13 +18,13 @@ import java.util.UUID;
 /**
  * Create by tuke on 2020/3/18
  */
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Service
 public class UserServiceImpl implements UserService {
-    private CassandraTemplate cassandraTemplate;
-    private UserDao userDao;
-    private PasswordEncoder passwordEncoder;
-    private CommonService commonService;
+    private final CassandraTemplate cassandraTemplate;
+    private final UserDao userDao;
+    private final PasswordEncoder passwordEncoder;
+    private final CommonService commonService;
 
     @Override
     public RestBody<?> createUser(CreateUserQuery query) {

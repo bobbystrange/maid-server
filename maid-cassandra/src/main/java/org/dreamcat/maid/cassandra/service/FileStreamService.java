@@ -1,6 +1,5 @@
 package org.dreamcat.maid.cassandra.service;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -20,7 +19,6 @@ import java.io.File;
  * Create by tuke on 2020/3/29
  */
 @Slf4j
-@AllArgsConstructor
 @Service
 public class FileStreamService {
 

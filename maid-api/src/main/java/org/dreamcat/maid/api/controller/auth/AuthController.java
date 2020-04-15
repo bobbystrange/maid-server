@@ -1,6 +1,6 @@
 package org.dreamcat.maid.api.controller.auth;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.maid.api.component.AuthComponent;
 import org.dreamcat.maid.api.config.AppConfig;
@@ -18,12 +18,12 @@ import javax.validation.Valid;
  * Create by tuke on 2020/3/22
  */
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RestController
 @RequestMapping(path = AppConfig.API_PREFIX + "/auth", method = {RequestMethod.POST},
         consumes = {MediaType.APPLICATION_JSON_VALUE})
 public class AuthController {
-    private AuthComponent<?> authComponent;
+    private final AuthComponent<?> authComponent;
 
     @RequestMapping(path = "/register")
     public Mono<?> register(

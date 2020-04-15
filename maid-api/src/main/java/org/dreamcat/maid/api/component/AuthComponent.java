@@ -1,6 +1,6 @@
 package org.dreamcat.maid.api.component;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.io.ImageUtil;
 import org.dreamcat.common.util.RandomUtil;
@@ -28,15 +28,15 @@ import java.util.function.Consumer;
  * Create by tuke on 2020/3/21
  */
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Service
 public class AuthComponent<T> {
-    private AuthUserService<T> authUserService;
-    private MailComponent mailComponent;
-    private AccessTokenComponent accessTokenComponent;
-    private AuthProperties authProperties;
-    private AuthVerificationService authVerificationService;
-    private PasswordEncoder passwordEncoder;
+    private final AuthUserService<T> authUserService;
+    private final MailComponent mailComponent;
+    private final AccessTokenComponent accessTokenComponent;
+    private final AuthProperties authProperties;
+    private final AuthVerificationService authVerificationService;
+    private final PasswordEncoder passwordEncoder;
 
 
     public RestBody<?> register(RegisterQuery query) {

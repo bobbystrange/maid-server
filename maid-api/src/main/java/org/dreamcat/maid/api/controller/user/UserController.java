@@ -1,6 +1,6 @@
 package org.dreamcat.maid.api.controller.user;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.maid.api.config.AppConfig;
 import org.dreamcat.maid.api.core.IdQuery;
@@ -19,16 +19,16 @@ import javax.validation.Valid;
  * Create by tuke on 2020/2/3
  */
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RestController
 @RequestMapping(path = AppConfig.API_PREFIX + "/user",
         consumes = {MediaType.APPLICATION_JSON_VALUE})
 public class UserController {
-    private UserService userService;
+    private final UserService userService;
 
     @RequestMapping(method = RequestMethod.POST)
     public Mono<?> createUser(@Valid @RequestBody Mono<CreateUserQuery> query) {
-        return query.map(it -> userService.createUser(it));
+        return query.map(userService::createUser);
     }
 
     @RequestMapping(method = RequestMethod.DELETE)
@@ -51,7 +51,7 @@ public class UserController {
 
     @RequestMapping(method = RequestMethod.PUT)
     public Mono<?> updateUser(@Valid @RequestBody Mono<UpdateUserQuery> query) {
-        return query.map(it -> userService.updateUser(it));
+        return query.map(userService::updateUser);
     }
 
 }
