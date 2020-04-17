@@ -6,10 +6,10 @@ import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.exception.ForbiddenException;
 import org.dreamcat.common.web.util.BeanCopierUtil;
-import org.dreamcat.maid.api.controller.file.FileView;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
 import org.dreamcat.maid.cassandra.entity.FileEntity;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
+import org.springframework.data.cassandra.core.CassandraBatchOperations;
 import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -64,7 +65,7 @@ public class FileChainService {
     }
 
     // /a/b/c/d, just exist /a/b, then [/a/b, /a/b/c, /a/b/c/d]
-    public Map<String, UserFileEntity> retrospectCreateDirectories(UUID uid, String path, long timestamp) {
+    public Map<String, UserFileEntity> retrospectMkdirs(UUID uid, String path, long timestamp) {
         List<String> paths = splitPath(path);
         Map<String, UserFileEntity> entities = userFileDao.findAll(uid, paths).stream()
                 .collect(Collectors.toMap(UserFileEntity::getPath, it -> it));
@@ -87,34 +88,6 @@ public class FileChainService {
             updatedEntities.put(i, file);
         }
         return updatedEntities;
-    }
-
-    public void recurseList(FileView tree, UUID uid, int level) {
-        if (level <= 0) return;
-        String path = tree.getPath();
-        UserFileEntity directory = userFileDao.find(uid, path);
-        if (directory == null) return;
-        if (commonService.isFile(directory)) return;
-
-        Set<String> items = directory.getItems();
-        if (ObjectUtil.isEmpty(items)) return;
-
-        List<FileView> views = userFileDao.findAll(uid, items, path).stream()
-                .map(it -> {
-                    FileView view = BeanCopierUtil.copy(it, FileView.class);
-                    view.setName(FileUtil.basename(view.getPath()));
-                    if (commonService.isDirectory(it)) {
-                        view.setItems(new ArrayList<>());
-                    }
-                    return view;
-                }).collect(Collectors.toList());
-
-        tree.setItems(views);
-
-        for (FileView it : views) {
-            if (it.getItems() == null) continue;
-            recurseList(it, uid, level - 1);
-        }
     }
 
     // move /a/b/c/d to /a/b/x/y  ->  /a/b/x/y/d
@@ -147,76 +120,70 @@ public class FileChainService {
         }
     }
 
-    public void rename(UserFileEntity entity, String newName) {
+    public void rename(UserFileEntity entity, UUID uid, String newName) {
         var path = entity.getPath();
         if ("/".equals(path)) {
             log.warn("Unsupported to rename root directory / ");
             return;
         }
-        var parentPath = FileUtil.dirname(path);
-        var entities = new ArrayList<UserFileEntity>();
-        var timestamp = System.currentTimeMillis();
 
-        entity.setPath(FileUtil.normalize(parentPath + "/" + newName));
-        recurseRename(parentPath, entity, entities, timestamp);
-        userFileDao.saveAll(entities);
+        var parentPath = FileUtil.dirname(path);
+        var newPath = FileUtil.normalize(parentPath + "/" + newName);
+        if (userFileDao.find(uid, newPath) != null) {
+            throw new ForbiddenException("file already exists");
+        }
+
+        var timestamp = System.currentTimeMillis();
+        var ops = cassandraTemplate.batchOps();
+        var opsCounter = new AtomicInteger(1 << 10 - 3);
+
+        var parentDir = userFileDao.find(uid, parentPath);
+        var oldName = FileUtil.basename(path);
+        parentDir.getItems().remove(oldName);
+        parentDir.getItems().add(newName);
+        ops.update(parentDir);
+
+        var oldEntity = new UserFileEntity();
+        oldEntity.setPath(path);
+        oldEntity.setUid(uid);
+        ops.delete(oldEntity);
+
+        entity.setPath(newPath);
+        entity.setMtime(timestamp);
+        ops.insert(entity);
+
+        if (ObjectUtil.isNotEmpty(entity.getItems())) {
+            var entities = userFileDao.findAllItems(entity);
+            for (var e : entities) {
+                recurseRename(entity, e, ops, opsCounter);
+            }
+        }
+        ops.execute();
     }
 
-    private void recurseRename(String parentPath, UserFileEntity entity, List<UserFileEntity> entities, long timestamp) {
+    private void recurseRename(UserFileEntity parent, UserFileEntity entity, CassandraBatchOperations ops, AtomicInteger opsCounter) {
         // avoid oom
-        if (entities.size() > 1 << 10) {
+        if (opsCounter.get() < 0) {
             throw new ForbiddenException("too many entities, more than 1024");
         }
 
-        entity.setPath(FileUtil.normalize(parentPath + "/" + FileUtil.basename(entity.getPath())));
-        entity.setMtime(timestamp);
-        entities.add(entity);
+        var oldEntity = new UserFileEntity();
+        oldEntity.setPath(entity.getPath());
+        oldEntity.setUid(entity.getUid());
+        ops.delete(oldEntity);
+        opsCounter.getAndDecrement();
 
-        Set<String> items = entity.getItems();
+        entity.setPath(FileUtil.normalize(parent.getPath() + "/" + FileUtil.basename(entity.getPath())));
+        entity.setMtime(parent.getMtime());
+        ops.insert(entity);
+        opsCounter.getAndDecrement();
+
+        var items = entity.getItems();
         if (ObjectUtil.isEmpty(items)) return;
 
-        List<UserFileEntity> subEntities = userFileDao.findAllItems(entity);
-        for (UserFileEntity subEntity : subEntities) {
-            recurseRename(entity.getPath(), subEntity, entities, timestamp);
-        }
-    }
-
-    public void delete(UserFileEntity entity, UUID uid) {
-        var ops = cassandraTemplate.batchOps();
-
-        var path = entity.getPath();
-        // need update parent dir's items;
-        if (!path.equals("/")) {
-            var basename = FileUtil.basename(path);
-            var dirname = FileUtil.dirname(path);
-            var dir = userFileDao.find(uid, dirname);
-            var items = dir.getItems();
-            items.remove(basename);
-            dir.setItems(items);
-            ops.update(dir);
-        }
-
-        if (commonService.isFile(entity)) {
-            ops.delete(entity).execute();
-            return;
-        }
-
-        List<UserFileEntity> entities = new ArrayList<>();
-        recurseDelete(entity, entities);
-        ops.delete(entities).execute();
-    }
-
-    private void recurseDelete(UserFileEntity entity, List<UserFileEntity> entities) {
-        // avoid oom
-        if (entities.size() > 1 << 10) {
-            throw new ForbiddenException("too many entities, more than 1024");
-        }
-        entities.add(entity);
-        if (commonService.isDirectory(entity)) {
-            List<UserFileEntity> items = userFileDao.findAllItems(entity);
-            for (UserFileEntity item : items) {
-                recurseDelete(item, entities);
-            }
+        var entities = userFileDao.findAllItems(entity);
+        for (var e : entities) {
+            recurseRename(entity, e, ops, opsCounter);
         }
     }
 

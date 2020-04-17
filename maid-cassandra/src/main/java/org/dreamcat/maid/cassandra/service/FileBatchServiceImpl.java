@@ -10,8 +10,7 @@ import org.dreamcat.common.web.exception.HttpException;
 import org.dreamcat.maid.api.controller.file.MoveOrCopyFileBatchQuery;
 import org.dreamcat.maid.api.controller.file.PathBatchView;
 import org.dreamcat.maid.api.service.FileBatchService;
-import org.dreamcat.maid.api.service.FileOperationService;
-import org.dreamcat.maid.api.service.FileService;
+import org.dreamcat.maid.api.service.FileOpService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -26,8 +25,7 @@ import java.util.List;
 @Service
 public class FileBatchServiceImpl implements FileBatchService {
     private final CommonService commonService;
-    private final FileOperationService fileOperationService;
-    private final FileService fileService;
+    private final FileOpService fileOpService;
 
     @Override
     public RestBody<PathBatchView> batchMoveFile(MoveOrCopyFileBatchQuery query, ServerWebExchange exchange) {
@@ -38,7 +36,7 @@ public class FileBatchServiceImpl implements FileBatchService {
         var view = newPathBatchView();
         for (var path : paths) {
             try {
-                var result = fileOperationService.moveFile(path, toPath, exchange);
+                var result = fileOpService.move(path, toPath, exchange);
                 if (result.getCode() == 0) {
                     view.getApplied().add(path);
                 } else {
@@ -64,7 +62,7 @@ public class FileBatchServiceImpl implements FileBatchService {
         var view = newPathBatchView();
         for (var path : paths) {
             try {
-                var result = fileOperationService.copyFile(path, toPath, exchange);
+                var result = fileOpService.copy(path, toPath, exchange);
                 if (result.getCode() == 0) {
                     view.getApplied().add(path);
                 } else {
@@ -82,7 +80,7 @@ public class FileBatchServiceImpl implements FileBatchService {
     }
 
     @Override
-    public RestBody<PathBatchView> batchDeleteFile(List<String> paths, ServerWebExchange exchange) {
+    public RestBody<PathBatchView> batchRemoveFile(List<String> paths, ServerWebExchange exchange) {
         if (ObjectUtil.isEmpty(paths)) {
             throw new BadRequestException("expect at least one path in request-body");
         }
@@ -94,7 +92,7 @@ public class FileBatchServiceImpl implements FileBatchService {
         var view = newPathBatchView();
         for (var path : paths) {
             try {
-                var result = fileService.deleteFile(path, exchange);
+                var result = fileOpService.remove(path, exchange);
                 if (result.getCode() == 0) {
                     view.getApplied().add(path);
                 } else {

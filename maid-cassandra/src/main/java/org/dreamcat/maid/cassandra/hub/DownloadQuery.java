@@ -11,4 +11,6 @@ import lombok.Setter;
 public class DownloadQuery extends UploadQuery {
     private String type;
     private String filename;
+    // Content-Disposition: attachment; filename=xxx
+    private Boolean asAttachment;
 }

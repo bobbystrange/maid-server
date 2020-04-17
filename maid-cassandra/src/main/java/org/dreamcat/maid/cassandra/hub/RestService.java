@@ -27,7 +27,13 @@ public class RestService {
     }
 
     public String concatDownloadURL(String digest, String serverAddress, String filename, String type) {
-        var queryMap = newDownLoadQueryMap(digest, filename, type);
+        var queryMap = newDownLoadQueryMap(digest, filename, type, true);
+        var baseUrl = String.format("http://%s/file/download", serverAddress);
+        return UrlUtil.concatUrl(baseUrl, queryMap);
+    }
+
+    public String concatFetchURL(String digest, String serverAddress, String filename, String type) {
+        var queryMap = newDownLoadQueryMap(digest, filename, type, false);
         var baseUrl = String.format("http://%s/file/download", serverAddress);
         return UrlUtil.concatUrl(baseUrl, queryMap);
     }
@@ -45,13 +51,14 @@ public class RestService {
         return queryMap;
     }
 
-    private Map<String, String> newDownLoadQueryMap(String digest, String filename, String type) {
+    private Map<String, String> newDownLoadQueryMap(String digest, String filename, String type, boolean asAttachment) {
         var query = new DownloadQuery();
         query.setDigest(digest);
         query.setTimestamp(System.currentTimeMillis());
         query.setNonce(RandomUtil.randi(1 << 16));
         query.setFilename(filename);
         query.setType(type);
+        query.setAsAttachment(asAttachment);
 
         var queryMap = BeanMapUtil.toProps(query);
         var rawStr = UrlUtil.toSortedQueryString(queryMap);

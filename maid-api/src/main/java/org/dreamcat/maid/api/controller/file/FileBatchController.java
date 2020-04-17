@@ -43,9 +43,9 @@ public class FileBatchController {
     }
 
     @RequestMapping(path = {"/rm", "/remove", "rmdir", "/remove/dir"})
-    public Mono<RestBody<?>> batchDeleteFile(
+    public Mono<RestBody<?>> batchRemoveFile(
             @Valid @RequestBody Mono<List<String>> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.batchDeleteFile(it, exchange));
+        return query.map(it -> service.batchRemoveFile(it, exchange));
     }
 }

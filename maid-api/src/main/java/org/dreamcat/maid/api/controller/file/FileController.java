@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.maid.api.config.AppConfig;
+import org.dreamcat.maid.api.core.PathLevelQuery;
 import org.dreamcat.maid.api.core.PathQuery;
 import org.dreamcat.maid.api.service.FileService;
 import org.springframework.http.MediaType;
@@ -15,6 +16,8 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.validation.Valid;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Create by tuke on 2020/2/3
@@ -23,36 +26,32 @@ import javax.validation.Valid;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping(path = AppConfig.API_PREFIX + "/file",
+        method = RequestMethod.POST,
         consumes = {MediaType.APPLICATION_JSON_VALUE})
 public class FileController {
     private final FileService service;
 
-    @RequestMapping(method = RequestMethod.POST)
-    public Mono<RestBody<?>> createFile(
-            @Valid @RequestBody Mono<CreateFileQuery> query,
-            ServerWebExchange exchange) {
-        return query.map(it -> service.createFile(it, exchange));
-    }
-
-    @RequestMapping(method = RequestMethod.DELETE)
-    public Mono<RestBody<?>> deleteFile(
+    // only dir
+    @RequestMapping(path = {"/ls", "/list"})
+    public Mono<RestBody<List<FileItemView>>> list(
             @Valid @RequestBody Mono<PathQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.deleteFile(it.getPath(), exchange));
+        return query.map(it -> service.list(it.getPath(), exchange));
     }
 
-    @RequestMapping(method = RequestMethod.GET)
-    public Mono<RestBody<?>> getFile(
+    // only dir
+    @RequestMapping(path = {"/tree"})
+    public Mono<RestBody<FileView>> tree(
+            @Valid @RequestBody Mono<PathLevelQuery> query,
+            ServerWebExchange exchange) {
+        return query.map(it -> service.tree(it.getPath(), it.getLevel(), exchange));
+    }
+
+    @RequestMapping(path = {"/flat/tree"})
+    public Mono<RestBody<Map<String, List<FileItemView>>>> listFlatDirTree(
             @Valid @RequestBody Mono<PathQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.getFile(it.getPath(), exchange));
-    }
-
-    @RequestMapping(method = RequestMethod.PUT)
-    public Mono<RestBody<?>> updateFile(
-            @Valid @RequestBody Mono<UpdateFileQuery> query,
-            ServerWebExchange exchange) {
-        return query.map(it -> service.updateFile(it, exchange));
+        return query.map(it -> service.flatTree(it.getPath(), exchange));
     }
 
 }

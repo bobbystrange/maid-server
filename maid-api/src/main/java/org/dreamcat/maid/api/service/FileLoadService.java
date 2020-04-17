@@ -11,7 +11,7 @@ public interface FileLoadService {
 
     RestBody<?> uploadFile(String directoryPath, FilePart filePart, ServerWebExchange exchange);
 
-    RestBody<String> downloadFile(String path, ServerWebExchange exchange);
+    RestBody<String> downloadFile(String path, boolean asAttachment, ServerWebExchange exchange);
 
     RestBody<String> shareFile(String id);
 

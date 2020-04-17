@@ -3,6 +3,7 @@ package org.dreamcat.maid.cassandra.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.crypto.MD5Util;
+import org.dreamcat.common.function.QuaternaryOperator;
 import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.common.web.exception.BadRequestException;
@@ -11,7 +12,6 @@ import org.dreamcat.maid.api.config.AppProperties;
 import org.dreamcat.maid.api.service.FileLoadService;
 import org.dreamcat.maid.api.util.TikaUtil;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
-import org.dreamcat.maid.cassandra.entity.UserFileEntity;
 import org.dreamcat.maid.cassandra.hub.InstanceService;
 import org.dreamcat.maid.cassandra.hub.RestService;
 import org.springframework.http.codec.multipart.FilePart;
@@ -21,7 +21,6 @@ import org.springframework.web.server.ServerWebExchange;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.UUID;
 
 /**
  * Create by tuke on 2020/3/20
@@ -40,18 +39,19 @@ public class FileLoadServiceImpl implements FileLoadService {
 
 
     @Override
-    public RestBody<?> uploadFile(String directoryPath, FilePart filePart, ServerWebExchange exchange) {
-        UUID uid = commonService.retrieveUid(exchange);
-        UserFileEntity directory = fileDao.find(uid, directoryPath);
+    public RestBody<?> uploadFile(String path, FilePart filePart, ServerWebExchange exchange) {
+        commonService.checkPath(path);
+        var uid = commonService.retrieveUid(exchange);
+        var directory = fileDao.find(uid, path);
         if (directory == null) {
-            return RestBody.error("Directory %s doesn't exist", directoryPath);
+            return RestBody.error("Directory %s doesn't exist", path);
         }
         if (commonService.isFile(directory)) {
-            return RestBody.error("%s is not a diretory", directoryPath);
+            return RestBody.error("%s is not a diretory", path);
         }
 
-        String name = filePart.filename();
-        File tempFile = new File(properties.getFilePath().getTempUpload(), name);
+        var name = filePart.filename();
+        var tempFile = new File(properties.getFilePath().getTempUpload(), name);
         try {
             filePart.transferTo(tempFile);
             String sign;
@@ -64,7 +64,7 @@ public class FileLoadServiceImpl implements FileLoadService {
                 return RestBody.error("Sign error on %s", name);
             }
 
-            File file = new File(properties.getFilePath().getUpload(), sign);
+            var file = new File(properties.getFilePath().getUpload(), sign);
             if (!file.exists()) {
                 try {
                     Files.move(tempFile.toPath(), file.toPath());
@@ -73,7 +73,7 @@ public class FileLoadServiceImpl implements FileLoadService {
                     return RestBody.error("Save error on %s", name);
                 }
             }
-            long size = file.length();
+            var size = file.length();
             fileBuildService.createFile(directory, name, uid, sign, type, size);
         } finally {
             if (tempFile.exists() && !tempFile.delete()) {
@@ -85,7 +85,16 @@ public class FileLoadServiceImpl implements FileLoadService {
     }
 
     @Override
-    public RestBody<String> downloadFile(String path, ServerWebExchange exchange) {
+    public RestBody<String> downloadFile(String path, boolean asAttachment, ServerWebExchange exchange) {
+        if (asAttachment) {
+            return findFileURL(path, exchange, restService::concatDownloadURL);
+        } else {
+            return findFileURL(path, exchange, restService::concatFetchURL);
+        }
+    }
+
+    private RestBody<String> findFileURL(String path, ServerWebExchange exchange, QuaternaryOperator<String> op) {
+        commonService.checkPath(path);
         var uid = commonService.retrieveUid(exchange);
         var file = fileDao.find(uid, path);
         if (file == null) {
@@ -104,7 +113,8 @@ public class FileLoadServiceImpl implements FileLoadService {
 
         var basename = FileUtil.basename(file.getPath());
         var type = file.getType();
-        var url = restService.concatDownloadURL(digest, domain, basename, type);
+
+        var url = op.apply(digest, domain, basename, type);
         return RestBody.ok(url);
     }
 

@@ -16,5 +16,5 @@ public interface FileBatchService {
 
     RestBody<PathBatchView> batchCopyFile(MoveOrCopyFileBatchQuery query, ServerWebExchange exchange);
 
-    RestBody<PathBatchView> batchDeleteFile(List<String> paths, ServerWebExchange exchange);
+    RestBody<PathBatchView> batchRemoveFile(List<String> paths, ServerWebExchange exchange);
 }

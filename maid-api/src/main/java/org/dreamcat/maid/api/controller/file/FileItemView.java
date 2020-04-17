@@ -17,7 +17,6 @@ public class FileItemView {
     private Long mtime;
 
     // only file
-    private String digest;
     private String type;
     private Long size;
 

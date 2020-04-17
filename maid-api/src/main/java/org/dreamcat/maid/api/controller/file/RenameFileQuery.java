@@ -14,6 +14,6 @@ import javax.validation.constraints.Pattern;
 @Setter
 public class RenameFileQuery extends PathQuery {
     @NotEmpty
-    @Pattern(regexp = "^[^/]{1,127}$")
+    @Pattern(regexp = "^[^/]{1,255}$")
     private String name;
 }

@@ -5,8 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.maid.api.config.AppConfig;
 import org.dreamcat.maid.api.core.PathQuery;
-import org.dreamcat.maid.api.service.FileOperationService;
-import org.dreamcat.maid.api.service.FileService;
+import org.dreamcat.maid.api.service.FileOpService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,47 +25,15 @@ import javax.validation.Valid;
 @RequestMapping(path = AppConfig.API_PREFIX + "/file",
         method = RequestMethod.POST,
         consumes = {MediaType.APPLICATION_JSON_VALUE})
-public class FileOperationController {
-    private final FileOperationService service;
-    private final FileService fileService;
-
-    // only file
-    @RequestMapping(path = {"/cat"})
-    public Mono<RestBody<?>> catFile(
-            @Valid @RequestBody Mono<PathQuery> query,
-            ServerWebExchange exchange) {
-        return query.map(it -> service.catFile(it.getPath(), exchange));
-    }
+public class FileOpController {
+    private final FileOpService service;
 
     // only dir
     @RequestMapping(path = {"/mkdir"})
-    public Mono<RestBody<?>> createDirectory(
+    public Mono<RestBody<?>> mkdir(
             @Valid @RequestBody Mono<PathQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.createDirectory(it.getPath(), exchange));
-    }
-
-    // only dir
-    @RequestMapping(path = {"/ls", "list"})
-    public Mono<RestBody<?>> listDirectory(
-            @Valid @RequestBody Mono<PathQuery> query,
-            ServerWebExchange exchange) {
-        return query.map(it -> service.listDirectory(it.getPath(), exchange));
-    }
-
-    // only dir
-    @RequestMapping(path = {"tree", "/list/tree"})
-    public Mono<RestBody<?>> listDirectoryTree(
-            @Valid @RequestBody Mono<PathQuery> query,
-            ServerWebExchange exchange) {
-        return query.map(it -> service.listDirectoryTree(it.getPath(), exchange));
-    }
-
-    @RequestMapping(path = {"/root/path-map"})
-    public Mono<RestBody<?>> getPathMap(
-            @Valid @RequestBody Mono<PathQuery> query,
-            ServerWebExchange exchange) {
-        return query.map(it -> service.getPathMap(exchange));
+        return query.map(it -> service.mkdir(it.getPath(), exchange));
     }
 
     // both of file and dir
@@ -74,7 +41,7 @@ public class FileOperationController {
     public Mono<RestBody<?>> renameFile(
             @Valid @RequestBody Mono<RenameFileQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.renameFile(it.getPath(), it.getName(), exchange));
+        return query.map(it -> service.rename(it.getPath(), it.getName(), exchange));
     }
 
     // file --> new dir or existing dir    &    dir  --> existing dir
@@ -82,7 +49,7 @@ public class FileOperationController {
     public Mono<RestBody<?>> moveFile(
             @Valid @RequestBody Mono<MoveOrCopyFileQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.moveFile(it.getFromPath(), it.getToPath(), exchange));
+        return query.map(it -> service.move(it.getFromPath(), it.getToPath(), exchange));
     }
 
     // file --> existing dir    &    dir --> existing dir
@@ -90,15 +57,15 @@ public class FileOperationController {
     public Mono<RestBody<?>> copyFile(
             @Valid @RequestBody Mono<MoveOrCopyFileQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.copyFile(it.getFromPath(), it.getToPath(), exchange));
+        return query.map(it -> service.copy(it.getFromPath(), it.getToPath(), exchange));
     }
 
     // both of file and dir, rm -rf
     @RequestMapping(path = {"/rm", "/remove", "/rmdir"})
-    public Mono<RestBody<?>> removeFile(
+    public Mono<RestBody<?>> remove(
             @Valid @RequestBody Mono<PathQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> fileService.deleteFile(it.getPath(), exchange));
+        return query.map(it -> service.remove(it.getPath(), exchange));
     }
 
 }

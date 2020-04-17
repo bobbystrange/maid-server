@@ -5,72 +5,39 @@ import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.common.web.exception.ForbiddenException;
-import org.dreamcat.common.web.exception.NotFoundException;
 import org.dreamcat.common.web.util.BeanCopierUtil;
-import org.dreamcat.maid.api.controller.file.FileItemView;
-import org.dreamcat.maid.api.controller.file.FileView;
-import org.dreamcat.maid.api.service.FileOperationService;
-import org.dreamcat.maid.api.util.TikaUtil;
-import org.dreamcat.maid.cassandra.dao.FileDao;
+import org.dreamcat.maid.api.service.FileOpService;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
-import org.dreamcat.maid.cassandra.entity.FileEntity;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
+import org.springframework.data.cassandra.core.CassandraBatchOperations;
 import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ServerWebExchange;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Create by tuke on 2020/3/23
  */
 @RequiredArgsConstructor
 @Service
-public class FileOperationServiceImpl implements FileOperationService {
+public class FileOpServiceImpl implements FileOpService {
     private final UserFileDao userFileDao;
-    private final FileDao fileDao;
     private final CommonService commonService;
     private final FileChainService fileChainService;
     private final CassandraTemplate cassandraTemplate;
 
     @Override
-    public RestBody<String> catFile(String path, ServerWebExchange exchange) {
-        commonService.checkPath(path);
-        UUID uid = commonService.retrieveUid(exchange);
-        UserFileEntity file = userFileDao.find(uid, path);
-        if (file == null) {
-            return RestBody.error("File %s doesn't exist", path);
-        }
-        if (commonService.isDirectory(file)) {
-            return RestBody.error("%s is not a file", path);
-        }
-
-        String signurate = file.getDigest();
-        String type = file.getType();
-        FileEntity realFile = fileDao.findById(signurate).orElseThrow(() ->
-                new NotFoundException("File " + path + " is not found"));
-
-        String content = null;
-        if (TikaUtil.isBinary(type)) {
-            return RestBody.error("Binary file %s cannot be read as string");
-        }
-
-        // todo read from file system
-        return RestBody.ok(content);
-    }
-
-    @Override
-    public RestBody<?> createDirectory(String path, ServerWebExchange exchange) {
+    public RestBody<?> mkdir(String path, ServerWebExchange exchange) {
         commonService.checkPath(path);
         UUID uid = commonService.retrieveUid(exchange);
         path = FileUtil.normalize(path);
         long timestamp = System.currentTimeMillis();
-        Map<String, UserFileEntity> directories = fileChainService.retrospectCreateDirectories(uid, path, timestamp);
+        Map<String, UserFileEntity> directories = fileChainService.retrospectMkdirs(uid, path, timestamp);
         if (ObjectUtil.isNotEmpty(directories)) {
             cassandraTemplate.batchOps().insert(directories.values()).execute();
         }
@@ -78,82 +45,22 @@ public class FileOperationServiceImpl implements FileOperationService {
     }
 
     @Override
-    public RestBody<FileView> listDirectory(String path, ServerWebExchange exchange) {
+    public RestBody<?> rename(String path, String name, ServerWebExchange exchange) {
         commonService.checkPath(path);
         UUID uid = commonService.retrieveUid(exchange);
-        UserFileEntity directory = userFileDao.find(uid, path);
-        if (directory == null) {
-            return RestBody.error("Directory %s doesn't exist", path);
+        UserFileEntity entity = userFileDao.find(uid, path);
+        if (entity == null) {
+            return RestBody.error("File %s doesn't exist", path);
         }
-        if (commonService.isFile(directory)) {
-            return RestBody.error("%s is not a diretory", path);
-        }
-
-        FileView directoryView = BeanCopierUtil.copy(directory, FileView.class);
-        directoryView.setName(FileUtil.basename(directoryView.getPath()));
-        fileChainService.recurseList(directoryView, uid, 1);
-        return RestBody.ok(directoryView);
+        fileChainService.rename(entity, uid, name);
+        return RestBody.ok();
     }
 
     @Override
-    public RestBody<FileView> listDirectoryTree(String path, ServerWebExchange exchange) {
-        UUID uid = commonService.retrieveUid(exchange);
-        UserFileEntity directory = userFileDao.find(uid, path);
-        if (directory == null) {
-            return RestBody.error("Directory %s doesn't exist", path);
-        }
-        if (commonService.isFile(directory)) {
-            return RestBody.error("%s is not a diretory", path);
-        }
-
-        FileView directoryView = BeanCopierUtil.copy(directory, FileView.class);
-        directoryView.setName(FileUtil.basename(directoryView.getPath()));
-        fileChainService.recurseList(directoryView, uid, 127);
-        return RestBody.ok(directoryView);
-    }
-
-    @Override
-    public RestBody<Map<String, List<FileItemView>>> getPathMap(ServerWebExchange exchange) {
-        var result = listDirectoryTree("/", exchange);
-        if (result.getCode() != 0) {
-            return RestBody.error(result.getMsg());
-        }
-
-        var view = result.getData();
-        var map = new HashMap<String, List<FileItemView>>();
-        recurseFillPathMap(view, map);
-        return RestBody.ok(map);
-    }
-
-    private void recurseFillPathMap(FileView view, Map<String, List<FileItemView>> map) {
-        var path = view.getPath();
-        var items = view.getItems();
-        if (ObjectUtil.isEmpty(items)) {
-            map.put(path, new ArrayList<>());
-            return;
-        }
-
-        map.put(path, items.stream()
-                .map(it -> {
-                    var itemView = BeanCopierUtil.copy(it, FileItemView.class);
-                    if (itemView.getDigest() == null) {
-                        var v = it.getItems();
-                        itemView.setCount(v != null ? v.size() : 0);
-                    }
-                    return itemView;
-                })
-                .collect(Collectors.toList()));
-
-        for (var i : items) {
-            recurseFillPathMap(i, map);
-        }
-    }
-
-    @Override
-    public RestBody<?> moveFile(String fromPath, String toPath, ServerWebExchange exchange) {
+    public RestBody<?> move(String fromPath, String toPath, ServerWebExchange exchange) {
         fromPath = FileUtil.normalize(fromPath);
         toPath = FileUtil.normalize(toPath);
-        commonService.checkPath(fromPath, toPath);
+        commonService.checkPaths(fromPath, toPath);
         if (toPath.startsWith(fromPath)) {
             throw new ForbiddenException("Target path " + toPath + "is the sub entry of source path " + fromPath);
         }
@@ -192,7 +99,7 @@ public class FileOperationServiceImpl implements FileOperationService {
         // create new directories for to-directory
         if (toDir == null) {
             Map<String, UserFileEntity> directories = fileChainService
-                    .retrospectCreateDirectories(uid, toPath, timestamp);
+                    .retrospectMkdirs(uid, toPath, timestamp);
             toDir = directories.remove(toPath);
             if (!directories.isEmpty()) {
                 ops.insert(directories.values());
@@ -252,10 +159,10 @@ public class FileOperationServiceImpl implements FileOperationService {
     }
 
     @Override
-    public RestBody<?> copyFile(String fromPath, String toPath, ServerWebExchange exchange) {
+    public RestBody<?> copy(String fromPath, String toPath, ServerWebExchange exchange) {
         fromPath = FileUtil.normalize(fromPath);
         toPath = FileUtil.normalize(toPath);
-        commonService.checkPath(fromPath, toPath);
+        commonService.checkPaths(fromPath, toPath);
         if (toPath.startsWith(fromPath)) {
             throw new ForbiddenException("Target path " + toPath + "is the sub entry of source path " + fromPath);
         }
@@ -316,14 +223,53 @@ public class FileOperationServiceImpl implements FileOperationService {
     }
 
     @Override
-    public RestBody<?> renameFile(String path, String name, ServerWebExchange exchange) {
+    public RestBody<?> remove(String path, ServerWebExchange exchange) {
         commonService.checkPath(path);
-        UUID uid = commonService.retrieveUid(exchange);
-        UserFileEntity entity = userFileDao.find(uid, path);
+        var uid = commonService.retrieveUid(exchange);
+        var entity = userFileDao.find(uid, path);
         if (entity == null) {
             return RestBody.error("File %s doesn't exist", path);
         }
-        fileChainService.rename(entity, name);
+
+        var ops = cassandraTemplate.batchOps();
+        var opsCounter = new AtomicInteger(1024);
+
+        // need update parent dir's items;
+        if (!path.equals("/")) {
+            var basename = FileUtil.basename(path);
+            var dirname = FileUtil.dirname(path);
+            var dir = userFileDao.find(uid, dirname);
+            var items = dir.getItems();
+            items.remove(basename);
+            dir.setItems(items);
+            ops.update(dir);
+            opsCounter.decrementAndGet();
+        }
+
+        if (commonService.isFile(entity)) {
+            ops.delete(entity).execute();
+            return RestBody.ok();
+        }
+
+        recurseRemove(entity, ops, opsCounter);
+        ops.execute();
         return RestBody.ok();
     }
+
+    private void recurseRemove(UserFileEntity entity, CassandraBatchOperations ops, AtomicInteger opsCounter) {
+        // avoid oom
+        if (opsCounter.getAndDecrement() <= 0) {
+            throw new ForbiddenException("too many entities, more than 1024");
+        }
+        ops.delete(entity);
+
+        if (commonService.isFile(entity)) return;
+
+        var items = userFileDao.findAllItems(entity);
+        for (UserFileEntity item : items) {
+            recurseRemove(item, ops, opsCounter);
+        }
+    }
+
+
 }

@@ -5,6 +5,7 @@ import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.exception.BadRequestException;
 import org.dreamcat.common.web.exception.UnauthorizedException;
 import org.dreamcat.common.webflux.security.JwtReactiveFactory;
+import org.dreamcat.maid.api.core.PathLevelQuery;
 import org.dreamcat.maid.api.core.PathQuery;
 import org.dreamcat.maid.cassandra.entity.UserEntity;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
@@ -68,14 +69,27 @@ public class CommonService {
         return !isFile(file);
     }
 
+    public boolean hasPreview(UserFileEntity file) {
+        var type = file.getType();
+        if (ObjectUtil.isBlank(type)) return false;
+        return type.matches("^image/.+$") ||
+                type.matches("^video/.+$");
+    }
+
     // avoid over flow stack
-    public void checkPath(String... paths) {
+    public void checkPath(String path) {
+        if (PathQuery.PATTERN_PATH.matcher(path).matches() &&
+                path.split("/").length <= PathLevelQuery.MAX_DIR_LEVEL + 1) {
+            return;
+        }
+        throw new BadRequestException("Invalid path");
+    }
+
+    public void checkPaths(String... paths) {
         if (ObjectUtil.isEmpty(paths)) return;
 
         for (String path : paths) {
-            if (PathQuery.PATTERN_PATH_EXCLUDE_ROOT.matcher(path).matches()
-                    && path.split("/").length < 128) continue;
-            throw new BadRequestException("Invalid path");
+            checkPath(path);
         }
     }
 

@@ -12,12 +12,20 @@ import javax.validation.constraints.Pattern;
 @Getter
 @Setter
 public class PathQuery {
+    // 32768 = (255 + 1) * 128
+
     // uuid
     public static final String PATTERN_PATH_EXCLUDE_ROOT_STRING =
-            "^/.{0,4093}[^/]$";
-    public static final java.util.regex.Pattern PATTERN_PATH_EXCLUDE_ROOT = java.util.regex.Pattern.compile(PATTERN_PATH_EXCLUDE_ROOT_STRING);
+            "^/.{0,32768}[^/]$";
+    public static final java.util.regex.Pattern PATTERN_PATH_EXCLUDE_ROOT =
+            java.util.regex.Pattern.compile(PATTERN_PATH_EXCLUDE_ROOT_STRING);
+
+    public static final String PATTERN_PATH_STRING =
+            "^/(.{0,32768}[^/])?$";
+    public static final java.util.regex.Pattern PATTERN_PATH =
+            java.util.regex.Pattern.compile(PATTERN_PATH_STRING);
 
     @NotEmpty
-    @Pattern(regexp = "^/.*$")
+    @Pattern(regexp = PATTERN_PATH_STRING)
     private String path;
 }

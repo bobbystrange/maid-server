@@ -15,10 +15,13 @@ import java.util.List;
 public class FileView {
     private String path;
     private String name;
-    private String digest;
-    private String type;
     private Long ctime;
     private Long mtime;
+    // only file
+    // Note that for internal usage only
+    //private String digest;
+    private String type;
     private Long size;
+    // only dir
     private List<FileView> items;
 }

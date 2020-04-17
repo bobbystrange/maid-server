@@ -16,6 +16,6 @@ public class MoveOrCopyFileQuery {
     private String fromPath;
 
     @NotEmpty
-    @Pattern(regexp = PathQuery.PATTERN_PATH_EXCLUDE_ROOT_STRING)
+    @Pattern(regexp = PathQuery.PATTERN_PATH_STRING)
     private String toPath;
 }
