@@ -1,4 +1,8 @@
-## 🤣 A restful-style implement for file system based on cassandra key columns
+## 👀 see also [maid-hub](https://github.com/bobbystrange/maid-hub) and [maid-webui](https://github.com/bobbystrange/maid-webui)
+**Note that this project is pending because I'm tired of UI design**
+
+---
+## 🤣🤔 A restful-style implement for file system based on cassandra key columns
 - user_file, mapping a root directory
 > uid, root user id
 > path, file path like /path/to/a/directory/or/file
@@ -9,13 +13,13 @@
 > type, media type
 > size, file size, unit is byte
 >
-## 🐱 Artificial restriction of FS
+## 🐱👮 Artificial restriction of FS
 > sub item count:   65536
 > file chain level: 128
 
-## 🍔 Restful API via http1.1
+## 🍔👩‍🎤 Restful API via http1.1
 
-- #### 🖤️ Done
+- #### 🖤️🖕 Done
 
 ```sh
 ### auth via JWT
@@ -43,7 +47,7 @@ download
 upload
 ```
 
-- #### ❤️ Plan
+- #### 🤪🐫️ Plan
 
 ```sh
 # user
