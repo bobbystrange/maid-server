@@ -37,9 +37,11 @@ create table if not exists user_file (
     primary key ( path, uid )
 );
 
-create table if not exists cache (
-    key   text primary key,
+create table if not exists dictionary (
+    key   text,
+    name  text,
     value text,
+    primary key (key, name)
 );
 
 create table if not exists file (

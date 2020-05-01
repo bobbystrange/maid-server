@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.common.web.exception.ForbiddenException;
+import org.dreamcat.common.web.exception.NotFoundException;
 import org.dreamcat.common.web.util.BeanCopierUtil;
 import org.dreamcat.maid.api.controller.file.FileItemView;
 import org.dreamcat.maid.api.controller.file.FileView;
@@ -38,10 +40,10 @@ public class FileServiceImpl implements FileService {
         var uid = commonService.retrieveUid(exchange);
         var dir = userFileDao.find(uid, path);
         if (dir == null) {
-            return RestBody.error("Directory %s doesn't exist", path);
+            throw new NotFoundException("Directory " + path + " doesn't exist");
         }
         if (commonService.isFile(dir)) {
-            return RestBody.error("%s is not a diretory", path);
+            throw new ForbiddenException(path + " is not a diretory");
         }
 
         var items = dir.getItems();
@@ -64,10 +66,10 @@ public class FileServiceImpl implements FileService {
         var uid = commonService.retrieveUid(exchange);
         var dir = userFileDao.find(uid, path);
         if (dir == null) {
-            return RestBody.error("Directory %s doesn't exist", path);
+            throw new NotFoundException("Directory " + path + " doesn't exist");
         }
         if (commonService.isFile(dir)) {
-            return RestBody.error("%s is not a diretory", path);
+            throw new ForbiddenException(path + " is not a diretory");
         }
 
         FileView tree = BeanCopierUtil.copy(dir, FileView.class);

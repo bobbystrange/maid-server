@@ -14,7 +14,6 @@ import javax.validation.constraints.Pattern;
 public class PathQuery {
     // 32768 = (255 + 1) * 128
 
-    // uuid
     public static final String PATTERN_PATH_EXCLUDE_ROOT_STRING =
             "^/.{0,32768}[^/]$";
     public static final java.util.regex.Pattern PATTERN_PATH_EXCLUDE_ROOT =
@@ -24,8 +23,18 @@ public class PathQuery {
             "^/(.{0,32768}[^/])?$";
     public static final java.util.regex.Pattern PATTERN_PATH =
             java.util.regex.Pattern.compile(PATTERN_PATH_STRING);
-
+    // uuid
+    public static final String PATTERN_UUID_STRING =
+            "^[0-9a-zA-Z]{8}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{4}-[0-9a-zA-Z]{12}$";
+    public static final java.util.regex.Pattern PATTERN_UUID = java.util.regex.Pattern.compile(PATTERN_UUID_STRING);
     @NotEmpty
     @Pattern(regexp = PATTERN_PATH_STRING)
     private String path;
+
+    public static PathQuery of(String path) {
+        var query = new PathQuery();
+        query.setPath(path);
+        return query;
+    }
+
 }

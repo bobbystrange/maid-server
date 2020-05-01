@@ -7,6 +7,8 @@ import org.dreamcat.common.function.QuaternaryOperator;
 import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.common.web.exception.BadRequestException;
+import org.dreamcat.common.web.exception.ForbiddenException;
+import org.dreamcat.common.web.exception.InternalServerErrorException;
 import org.dreamcat.common.web.exception.NotFoundException;
 import org.dreamcat.maid.api.config.AppProperties;
 import org.dreamcat.maid.api.service.FileLoadService;
@@ -29,25 +31,24 @@ import java.nio.file.Files;
 @RequiredArgsConstructor
 @Service
 public class FileLoadServiceImpl implements FileLoadService {
-    private final UserFileDao fileDao;
+    private final UserFileDao userFileDao;
     private final FileBuildService fileBuildService;
+    private final FileChainService fileChainService;
     private final CommonService commonService;
     private final AppProperties properties;
     // maid-hub
     private final InstanceService instanceService;
     private final RestService restService;
 
-
     @Override
     public RestBody<?> uploadFile(String path, FilePart filePart, ServerWebExchange exchange) {
         commonService.checkPath(path);
         var uid = commonService.retrieveUid(exchange);
-        var directory = fileDao.find(uid, path);
+        var directory = userFileDao.find(uid, path);
         if (directory == null) {
-            return RestBody.error("Directory %s doesn't exist", path);
-        }
-        if (commonService.isFile(directory)) {
-            return RestBody.error("%s is not a diretory", path);
+            throw new NotFoundException("diretory " + path + " doesn't exist");
+        } else if (commonService.isFile(directory)) {
+            throw new ForbiddenException(path + " is not a diretory");
         }
 
         var name = filePart.filename();
@@ -61,7 +62,7 @@ public class FileLoadServiceImpl implements FileLoadService {
                 type = TikaUtil.detect(tempFile);
             } catch (IOException e) {
                 log.error(e.getMessage());
-                return RestBody.error("Sign error on %s", name);
+                throw new InternalServerErrorException("Sign error on " + name);
             }
 
             var file = new File(properties.getFilePath().getUpload(), sign);
@@ -70,7 +71,7 @@ public class FileLoadServiceImpl implements FileLoadService {
                     Files.move(tempFile.toPath(), file.toPath());
                 } catch (IOException e) {
                     log.error(e.getMessage());
-                    return RestBody.error("Save error on %s", name);
+                    throw new InternalServerErrorException("Save error on " + name);
                 }
             }
             var size = file.length();
@@ -96,7 +97,7 @@ public class FileLoadServiceImpl implements FileLoadService {
     private RestBody<String> findFileURL(String path, ServerWebExchange exchange, QuaternaryOperator<String> op) {
         commonService.checkPath(path);
         var uid = commonService.retrieveUid(exchange);
-        var file = fileDao.find(uid, path);
+        var file = userFileDao.find(uid, path);
         if (file == null) {
             throw new NotFoundException("File " + path + " doesn't exist");
         }
@@ -108,7 +109,7 @@ public class FileLoadServiceImpl implements FileLoadService {
         var domain = instanceService.findMostIdleDomainAddress(digest);
         if (domain == null) {
             log.error("No most idle instance contains for download {}", digest);
-            throw new NotFoundException();
+            throw new InternalServerErrorException("No available instances");
         }
 
         var basename = FileUtil.basename(file.getPath());

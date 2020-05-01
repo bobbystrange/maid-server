@@ -18,8 +18,6 @@ public class FileView {
     private Long ctime;
     private Long mtime;
     // only file
-    // Note that for internal usage only
-    //private String digest;
     private String type;
     private Long size;
     // only dir

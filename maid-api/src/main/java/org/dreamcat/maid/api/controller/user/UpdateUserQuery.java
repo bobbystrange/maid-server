@@ -2,7 +2,6 @@ package org.dreamcat.maid.api.controller.user;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.dreamcat.maid.api.core.IdQuery;
 
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotEmpty;
@@ -13,7 +12,7 @@ import javax.validation.constraints.Pattern;
  */
 @Getter
 @Setter
-public class UpdateUserQuery extends IdQuery {
+public class UpdateUserQuery {
     @NotEmpty
     @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_-]{3,31}$")
     private String username;

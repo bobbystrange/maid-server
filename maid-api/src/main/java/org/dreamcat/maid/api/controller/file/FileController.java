@@ -31,15 +31,88 @@ import java.util.Map;
 public class FileController {
     private final FileService service;
 
-    // only dir
-    @RequestMapping(path = {"/ls", "/list"})
+    /**
+     * @api {post} /file/(list|ls) List a directory
+     * @apiDescription list a specified directory
+     * @apiName ListFile
+     * @apiGroup File
+     * @apiParam {string} path directory path
+     * @apiSuccess {number} code
+     * @apiSuccess {string} name filename
+     * @apiSuccess {string} path file path, root directory is '/'
+     * @apiSuccess {number} ctime created time in milliseconds
+     * @apiSuccess {number} mtime modified time in milliseconds
+     * @apiSuccess [string] type file type, in mime type
+     * @apiSuccess [number] size file size, in bytes
+     * @apiSuccess [number] count sub items count
+     * @apiSuccessExample {json} Success-Response:
+     * {
+     * "code": 0,
+     * "data": [
+     * {
+     * "name": "filename",
+     * "path": "/path/to/filename",
+     * "ctime": 1588166983066,
+     * "mtime": 1588166983066,
+     * "type": "text/plain",
+     * "size": 1024,
+     * },
+     * {
+     * "name": "folder_name",
+     * "path": "/path/to/folder_name",
+     * "ctime": 1588166983066,
+     * "mtime": 1588166983066,
+     * "count": 3,
+     * },
+     * ]
+     * }
+     * @apiError (Error 403) {Number} code -1, path is not a diretory
+     * @apiError (Error 404) {Number} code -1, path is not found
+     */
+    @RequestMapping(path = {"/list", "/ls"})
     public Mono<RestBody<List<FileItemView>>> list(
             @Valid @RequestBody Mono<PathQuery> query,
             ServerWebExchange exchange) {
         return query.map(it -> service.list(it.getPath(), exchange));
     }
 
-    // only dir
+    /**
+     * @api {post} /file/tree List a directory tree
+     * @apiDescription list a specified directory tree
+     * @apiName TreeFile
+     * @apiGroup File
+     * @apiParam {string} path directory path
+     * @apiSuccess {number} code
+     * @apiSuccess {string} name filename
+     * @apiSuccess {string} path file path, root directory is '/'
+     * @apiSuccess {number} ctime created time in milliseconds
+     * @apiSuccess {number} mtime modified time in milliseconds
+     * @apiSuccess [string] type file type, in mime type
+     * @apiSuccess [number] size file size, in bytes
+     * @apiSuccess [object array] items sub items
+     * @apiSuccessExample {json} Success-Response:
+     * {
+     * "code": 0,
+     * "data": {
+     * "name": "folder_name",
+     * "path": "/path/to/folder_name",
+     * "ctime": 1588166983066,
+     * "mtime": 1588166983066,
+     * "items": [
+     * {
+     * "name": "filename",
+     * "path": "/path/to/folder_name/filename",
+     * "ctime": 1588166983066,
+     * "mtime": 1588166983066,
+     * "type": "text/plain",
+     * "size": 1024
+     * }
+     * ]
+     * },
+     * }
+     * @apiError (Error 403) {Number} code -1, path is not a diretory
+     * @apiError (Error 404) {Number} code -1, path is not found
+     */
     @RequestMapping(path = {"/tree"})
     public Mono<RestBody<FileView>> tree(
             @Valid @RequestBody Mono<PathLevelQuery> query,
@@ -47,6 +120,39 @@ public class FileController {
         return query.map(it -> service.tree(it.getPath(), it.getLevel(), exchange));
     }
 
+    /**
+     * @api {post} /file/flat/tree List a flat directory tree
+     * @apiDescription list a specified flat directory tree
+     * @apiName FlatTreeFile
+     * @apiGroup File
+     * @apiParam {string} path directory path
+     * @apiSuccess {number} code
+     * @apiSuccess {string} name filename
+     * @apiSuccess {string} path file path, root directory is '/'
+     * @apiSuccess {number} ctime created time in milliseconds
+     * @apiSuccess {number} mtime modified time in milliseconds
+     * @apiSuccess [string] type file type, in mime type
+     * @apiSuccess [number] size file size, in bytes
+     * @apiSuccess [object array] items sub items
+     * @apiSuccessExample {json} Success-Response:
+     * {
+     * "code": 0,
+     * "data": {
+     * "/path/to/folder_name": [
+     * {
+     * "name": "filename",
+     * "path": "/path/to/folder_name/filename",
+     * "ctime": 1588166983066,
+     * "mtime": 1588166983066,
+     * "type": "text/plain",
+     * "size": 1024
+     * },
+     * ],
+     * },
+     * }
+     * @apiError (Error 403) {Number} code -1, path is not a diretory
+     * @apiError (Error 404) {Number} code -1, path is not found
+     */
     @RequestMapping(path = {"/flat/tree"})
     public Mono<RestBody<Map<String, List<FileItemView>>>> listFlatDirTree(
             @Valid @RequestBody Mono<PathQuery> query,

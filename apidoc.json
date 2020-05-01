@@ -1,0 +1,7 @@
+{
+  "name": "maid-server",
+  "version": "0.1.0",
+  "description": "maid-server api docs",
+  "title": "Meter Maid API Docs",
+  "url": "http://api.maid.singlar.org/v1"
+}

@@ -76,3 +76,9 @@ unzip
 # history
 ```
 
+## 😡🤡 API invocation process
+- /auth/code/image fetch image code for register
+- /auth/register register and check the email
+- /auth/register/confirm use redirct url including in the email to confirm your register
+- /auth/login login with username & password, obtain token
+

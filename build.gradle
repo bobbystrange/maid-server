@@ -8,12 +8,6 @@ subprojects {
     version = '0.1.0'
     sourceCompatibility = '14'
 
-    repositories {
-        mavenCentral()
-        maven { url 'http://oss.singlar.org/repository/maven-releases' }
-        maven { url 'http://oss.singlar.org/repository/maven-snapshots' }
-    }
-
     ext {
         slf4jVersion = "1.7.30"
         lombokVersion = "1.18.12"
@@ -30,6 +24,7 @@ subprojects {
             // disable JPA
             exclude group: 'jakarta.persistence', module: 'jakarta.persistence-api'
         }
+        implementation 'org.dreamcat.pepper:rita-auth:0.1.0'
 
         implementation "org.apache.tika:tika-core:1.24"
 

@@ -1,3 +1,19 @@
 spring:
   profiles:
     active: dev
+
+  mail:
+    host: ${SPRING_MAIL_HOST:unused}
+    port: 465
+    username: ${SPRING_MAIL_USERNAME:unused}
+    password: ${SPRING_MAIL_PASSWORD:unused}
+    properties:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+          required: true
+      mail:
+        smtp:
+          ssl:
+            enable: true

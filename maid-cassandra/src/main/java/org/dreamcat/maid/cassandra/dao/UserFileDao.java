@@ -23,14 +23,12 @@ import java.util.stream.Collectors;
 public class UserFileDao {
     private final CassandraTemplate cassandraTemplate;
 
-    // QueryBulider
     public UserFileEntity find(UUID uid, String path) {
         Query query = Query.query(Criteria.where("path").is(path))
                 .and(Criteria.where("uid").is(uid));
         return cassandraTemplate.selectOne(query, UserFileEntity.class);
     }
 
-    // never null
     public List<UserFileEntity> findAllItems(UserFileEntity directory) {
         if (ObjectUtil.isEmpty(directory.getItems())) {
             return Collections.emptyList();

@@ -3,7 +3,6 @@ package org.dreamcat.maid.cassandra;
 import org.dreamcat.common.hc.okhttp.OkHttpUtil;
 import org.dreamcat.maid.api.config.AppProperties;
 import org.dreamcat.maid.cassandra.hub.RestService;
-import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,11 +14,6 @@ import java.util.HashMap;
 public class HubTest {
 
     public static void main(String[] args) throws IOException {
-        new HubTest().test();
-    }
-
-    @Test
-    public void test() throws IOException {
         var properties = new AppProperties();
         var rest = new AppProperties.Rest();
         rest.setSignKey("2C45435E-C680-4B3A-A99B-5319541B24A6");
@@ -30,6 +24,5 @@ public class HubTest {
         var formData = new HashMap<String, Object>();
         formData.put("file", new File("/Users/tuke/data/maid/7f9418207fb63284849891cc8a0dea80"));
         OkHttpUtil.postMultipartForm(url, formData);
-
     }
 }

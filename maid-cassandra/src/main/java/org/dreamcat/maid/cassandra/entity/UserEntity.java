@@ -3,6 +3,7 @@ package org.dreamcat.maid.cassandra.entity;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.cassandra.core.mapping.Column;
+import org.springframework.data.cassandra.core.mapping.Indexed;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
 
@@ -17,9 +18,11 @@ import java.util.UUID;
 public class UserEntity {
     @PrimaryKey
     private UUID id;
+    @Indexed
+    private String name;
     private Long ctime;
     private Long mtime;
-    private String name;
+
     private String password;
     private String email;
     @Column("first_name")

@@ -23,12 +23,23 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @RequiredArgsConstructor
 @RestController
-@RequestMapping(path = AppConfig.API_PREFIX + "/file")
+@RequestMapping(path = AppConfig.API_PREFIX + "/file", method = RequestMethod.POST)
 public class FileLoadController {
     private final FileLoadService service;
 
-    @RequestMapping(path = "/upload", method = RequestMethod.POST,
-            consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    /**
+     * @api {post} /file/upload Upload file
+     * @apiDescription upload a file to specified directory or a new directory
+     * @apiName UploadFile
+     * @apiGroup File
+     * @apiParam {string} path query parameter, directory path
+     * @apiParam {string} file file in multipart/form-data
+     * @apiSuccess (Success 200 code = 0) {Number} code
+     * @apiError (Error 403) {Number} code -1, path doesn't exist
+     * @apiError (Error 403) {Number} code -1, path is not a diretory
+     * @apiError (Error 500) {Number} code -1, maybe internal I/O error
+     */
+    @RequestMapping(path = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public Mono<RestBody<?>> uploadFile(
             @RequestParam String path,
             @RequestPart("file") FilePart filePart,
@@ -40,10 +51,22 @@ public class FileLoadController {
         //            System.out.println("finish");
         //        })
         //        .subscribe();
-        return Mono.fromCallable(() -> service.uploadFile(path, filePart, exchange));
+        return Mono.fromCallable(() ->
+                service.uploadFile(path, filePart, exchange));
     }
 
-    @RequestMapping(path = "/download", method = RequestMethod.GET)
+    /**
+     * @api {post} /file/download Download file
+     * @apiDescription download a file by file path
+     * @apiName DownloadFile
+     * @apiGroup File
+     * @apiParam {string} path query parameter, directory path in
+     * @apiParam [boolean] asAttachment query parameter, true to add download header
+     * @apiSuccess (Success 200) {Number} code 0
+     * @apiSuccess (Success 200) {String} data download url
+     * @apiError (Error 404) {Number} code -1, path or file-instance is not found
+     */
+    @RequestMapping(path = "/download")
     public Mono<RestBody<String>> downloadFile(
             @RequestParam String path,
             @RequestParam(required = false) Boolean asAttachment,

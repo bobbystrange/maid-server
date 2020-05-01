@@ -1,8 +1,10 @@
 package org.dreamcat.maid.cassandra.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.exception.BadRequestException;
+import org.dreamcat.common.web.exception.InternalServerErrorException;
 import org.dreamcat.common.web.exception.UnauthorizedException;
 import org.dreamcat.common.webflux.security.JwtReactiveFactory;
 import org.dreamcat.maid.api.core.PathLevelQuery;
@@ -19,6 +21,7 @@ import java.util.UUID;
 /**
  * Create by tuke on 2020/3/20
  */
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class CommonService {
@@ -42,10 +45,19 @@ public class CommonService {
     public void createUser(UserEntity user, long timestamp) {
         UUID uid = user.getId();
         UserFileEntity rootDirectory = rootFileEntity(uid, timestamp);
-        cassandraTemplate.batchOps()
-                .insert(user, rootDirectory, InsertOptions.builder()
-                        .ifNotExists(true).build())
-                .execute();
+
+        var userResult = cassandraTemplate.insert(user, InsertOptions.builder()
+                .ifNotExists(true).build());
+        if (userResult.wasApplied()) {
+            var rootResult = cassandraTemplate.insert(rootDirectory, InsertOptions.builder()
+                    .ifNotExists(true).build());
+            // root dir already exists but user doesn't exist
+            if (!rootResult.wasApplied()) {
+                log.error("User {} doesn't exist but root dir / does", user.getName());
+                throw new InternalServerErrorException("Inconsistent status on database");
+            }
+        }
+
     }
 
     public void fillEntity(UserEntity user, long timestamp) {

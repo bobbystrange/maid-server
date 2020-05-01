@@ -3,11 +3,10 @@ package org.dreamcat.maid.cassandra.service;
 import lombok.RequiredArgsConstructor;
 import org.dreamcat.common.web.util.BeanCopierUtil;
 import org.dreamcat.common.webflux.security.JwtReactiveFactory;
-import org.dreamcat.maid.api.core.RegisterEntity;
-import org.dreamcat.maid.api.service.AuthUserService;
 import org.dreamcat.maid.cassandra.dao.UserDao;
 import org.dreamcat.maid.cassandra.entity.UserEntity;
-import org.springframework.data.cassandra.core.CassandraTemplate;
+import org.dreamcat.rita.auth.core.RegisterEntity;
+import org.dreamcat.rita.auth.service.AuthUserService;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Service;
 public class AuthUserServiceImpl implements AuthUserService<UserEntity> {
     private final UserDao userDao;
     private final CommonService commonService;
-    private final CassandraTemplate cassandraTemplate;
     private final JwtReactiveFactory jwtFactory;
 
     @Override

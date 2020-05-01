@@ -20,7 +20,9 @@ public interface FileOpService {
     // cp -r
     RestBody<?> copy(String fromPath, String toPath, ServerWebExchange exchange);
 
-
     RestBody<?> remove(String path, ServerWebExchange exchange);
+
+    // Note that it doesn't guarantee the atomicity of the operation
+    RestBody<?> removeNumerous(String path, ServerWebExchange exchange);
 
 }

@@ -63,9 +63,14 @@ public class FileBuildService {
             formData.put("file", realFile);
             try {
                 log.info("Uploading file {} to {} via post {}", digest, domain, url);
-                OkHttpUtil.postMultipartForm(url, formData);
-                saveUserFile(directory, name, uid, digest, type, size);
-                error = false;
+                var res = OkHttpUtil.postMultipartForm(url, formData);
+                if (res.isSuccessful()) {
+                    saveUserFile(directory, name, uid, digest, type, size);
+                    error = false;
+                } else {
+                    log.error("{} {} on upload file {} to {}", res.code(), res.message(), digest, domain);
+                    throw new InternalServerErrorException("Failed to save file to hub");
+                }
             } catch (IOException e) {
                 log.error("Error on upload file {} to {}, caused by `{}`", digest, domain, e.getMessage());
                 throw new InternalServerErrorException("Failed to save file to hub");

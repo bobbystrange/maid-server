@@ -5,13 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.exception.ForbiddenException;
+import org.dreamcat.common.web.exception.NotFoundException;
 import org.dreamcat.common.web.util.BeanCopierUtil;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
-import org.dreamcat.maid.cassandra.entity.FileEntity;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
 import org.springframework.data.cassandra.core.CassandraBatchOperations;
 import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ServerWebExchange;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,6 +65,16 @@ public class FileChainService {
         });
     }
 
+    // Fixme concurrent invocation issues
+    public void mkdir(String path, UUID uid) {
+        long timestamp = System.currentTimeMillis();
+        Map<String, UserFileEntity> directories = retrospectMkdirs(uid, path, timestamp);
+        if (ObjectUtil.isNotEmpty(directories)) {
+            cassandraTemplate.batchOps()
+                    .insert(directories.values()).execute();
+        }
+    }
+
     // /a/b/c/d, just exist /a/b, then [/a/b, /a/b/c, /a/b/c/d]
     public Map<String, UserFileEntity> retrospectMkdirs(UUID uid, String path, long timestamp) {
         List<String> paths = splitPath(path);
@@ -90,18 +101,116 @@ public class FileChainService {
         return updatedEntities;
     }
 
-    // move /a/b/c/d to /a/b/x/y  ->  /a/b/x/y/d
-    // then rename [/a/b/c/d] [/k1/k2/k3.k4]  to  [/a/b/x/y] [/d] /k1/k2/k3.k4
-    public void recurseMoveItem(
-            UserFileEntity item, UserFileEntity fromDir,
-            UserFileEntity toDir, String basename,
-            List<UserFileEntity> entities, List<UserFileEntity> oldEntities) {
-        // avoid oom
-        if (entities.size() > 1 << 10) {
-            throw new ForbiddenException("too many entities, more than 1024");
+    public void moveOrCopy(String fromPath, String toPath, ServerWebExchange exchange, boolean move) {
+        commonService.checkPaths(fromPath, toPath);
+        if (toPath.startsWith(fromPath)) {
+            throw new ForbiddenException("Target path " + toPath + "is the sub entry of source path " + fromPath);
         }
 
-        if (oldEntities != null) oldEntities.add(BeanCopierUtil.copy(item, UserFileEntity.class));
+        var uid = commonService.retrieveUid(exchange);
+        var fromFile = userFileDao.find(uid, fromPath);
+        var toDir = userFileDao.find(uid, toPath);
+
+        if (fromFile == null) {
+            throw new NotFoundException("Source path " + fromPath + " doesn't exist");
+        }
+        if (commonService.isDirectory(fromFile)) {
+            if (toDir == null) {
+                throw new NotFoundException("Target path " + toPath + " doesn't exist");
+            }
+            if (commonService.isFile(toDir)) {
+                throw new ForbiddenException("Target directory " + toPath + " is a file");
+            }
+            moveOrCopyDirectory(fromFile, toDir, uid, move);
+            return;
+        }
+
+        if (toDir != null && commonService.isFile(toDir)) {
+            throw new ForbiddenException("Target directory " + toPath + " is a file");
+        }
+
+        var timestamp = System.currentTimeMillis();
+        var oldFromFile = BeanCopierUtil.copy(fromFile, UserFileEntity.class);
+        var ops = cassandraTemplate.batchOps();
+
+        // unlink from-file from from-directory
+        if (move) {
+            var fromDirPath = FileUtil.dirname(fromPath);
+            var fromDirectory = userFileDao.find(uid, fromDirPath);
+            fromDirectory.getItems().remove(FileUtil.basename(fromFile.getPath()));
+            ops.insert(fromDirectory);
+        }
+
+        // create new directories for to-directory
+        if (toDir == null) {
+            Map<String, UserFileEntity> directories = retrospectMkdirs(uid, toPath, timestamp);
+            toDir = directories.remove(toPath);
+            if (!directories.isEmpty()) {
+                ops.insert(directories.values());
+            }
+        }
+
+        // link from-file to to-directory
+        var basename = FileUtil.basename(fromPath);
+        var toFilePath = FileUtil.normalize(toPath + "/" + basename);
+        fromFile.setPath(toFilePath);
+        fromFile.setMtime(timestamp);
+        associate(toDir, fromFile);
+        if (move) {
+            ops.delete(oldFromFile);
+        }
+        ops.insert(fromFile).insert(toDir).execute();
+    }
+
+    private void moveOrCopyDirectory(UserFileEntity fromFile, UserFileEntity toDir, UUID uid, boolean move) {
+        var fromPath = fromFile.getPath();
+        var toPath = toDir.getPath();
+        long timestamp = System.currentTimeMillis();
+        var oldFromFile = BeanCopierUtil.copy(fromFile, UserFileEntity.class);
+        var ops = cassandraTemplate.batchOps();
+        var opsCounter = new AtomicInteger((move ? 1 << 11 : 1 << 10) - 2);
+
+        // unlink from-file from from-directory
+        if (move) {
+            var fromDirPath = FileUtil.dirname(fromPath);
+            var fromDir = userFileDao.find(uid, fromDirPath);
+            fromDir.getItems().remove(FileUtil.basename(fromPath));
+            ops.insert(fromDir);
+            opsCounter.decrementAndGet();
+        }
+
+        // link from-file to to-directory
+        var basename = FileUtil.basename(fromPath);
+        var toFilePath = FileUtil.normalize(toPath + "/" + basename);
+        fromFile.setPath(toFilePath);
+        fromFile.setMtime(timestamp);
+        associate(toDir, fromFile);
+        if (move) {
+            ops.delete(oldFromFile);
+            opsCounter.decrementAndGet();
+        }
+
+        ops.insert(toDir).insert(fromFile);
+        var items = userFileDao.findAllItems(fromFile);
+        for (UserFileEntity item : items) {
+            recurseMoveOrCopyItem(item, fromFile, toDir, basename, ops, opsCounter, move);
+        }
+        ops.execute();
+    }
+
+    // move /a/b/c/d to /a/b/x/y  ->  /a/b/x/y/d
+    // then rename [/a/b/c/d] [/k1/k2/k3.k4]  to  [/a/b/x/y] [/d] /k1/k2/k3.k4
+    private void recurseMoveOrCopyItem(
+            UserFileEntity item, UserFileEntity fromDir,
+            UserFileEntity toDir, String basename,
+            CassandraBatchOperations ops, AtomicInteger opsCounter, boolean move) {
+        if (opsCounter.get() < 0) {
+            throw new ForbiddenException("Too many entities (expect less than or equals 1024)");
+        }
+        if (move) {
+            ops.delete(BeanCopierUtil.copy(item, UserFileEntity.class));
+            opsCounter.decrementAndGet();
+        }
 
         // /a/b/c/d/k1/k2/k3.k4
         String path = item.getPath();
@@ -111,106 +220,15 @@ public class FileChainService {
         path = toDir.getPath() + "/" + basename + path;
         item.setPath(path);
 
-        entities.add(item);
+        ops.insert(item);
+        opsCounter.decrementAndGet();
+
         if (commonService.isDirectory(item)) {
             List<UserFileEntity> items = userFileDao.findAllItems(item);
             for (UserFileEntity i : items) {
-                recurseMoveItem(i, fromDir, toDir, basename, entities, oldEntities);
+                recurseMoveOrCopyItem(i, fromDir, toDir, basename, ops, opsCounter, move);
             }
         }
     }
 
-    public void rename(UserFileEntity entity, UUID uid, String newName) {
-        var path = entity.getPath();
-        if ("/".equals(path)) {
-            log.warn("Unsupported to rename root directory / ");
-            return;
-        }
-
-        var parentPath = FileUtil.dirname(path);
-        var newPath = FileUtil.normalize(parentPath + "/" + newName);
-        if (userFileDao.find(uid, newPath) != null) {
-            throw new ForbiddenException("file already exists");
-        }
-
-        var timestamp = System.currentTimeMillis();
-        var ops = cassandraTemplate.batchOps();
-        var opsCounter = new AtomicInteger(1 << 10 - 3);
-
-        var parentDir = userFileDao.find(uid, parentPath);
-        var oldName = FileUtil.basename(path);
-        parentDir.getItems().remove(oldName);
-        parentDir.getItems().add(newName);
-        ops.update(parentDir);
-
-        var oldEntity = new UserFileEntity();
-        oldEntity.setPath(path);
-        oldEntity.setUid(uid);
-        ops.delete(oldEntity);
-
-        entity.setPath(newPath);
-        entity.setMtime(timestamp);
-        ops.insert(entity);
-
-        if (ObjectUtil.isNotEmpty(entity.getItems())) {
-            var entities = userFileDao.findAllItems(entity);
-            for (var e : entities) {
-                recurseRename(entity, e, ops, opsCounter);
-            }
-        }
-        ops.execute();
-    }
-
-    private void recurseRename(UserFileEntity parent, UserFileEntity entity, CassandraBatchOperations ops, AtomicInteger opsCounter) {
-        // avoid oom
-        if (opsCounter.get() < 0) {
-            throw new ForbiddenException("too many entities, more than 1024");
-        }
-
-        var oldEntity = new UserFileEntity();
-        oldEntity.setPath(entity.getPath());
-        oldEntity.setUid(entity.getUid());
-        ops.delete(oldEntity);
-        opsCounter.getAndDecrement();
-
-        entity.setPath(FileUtil.normalize(parent.getPath() + "/" + FileUtil.basename(entity.getPath())));
-        entity.setMtime(parent.getMtime());
-        ops.insert(entity);
-        opsCounter.getAndDecrement();
-
-        var items = entity.getItems();
-        if (ObjectUtil.isEmpty(items)) return;
-
-        var entities = userFileDao.findAllItems(entity);
-        for (var e : entities) {
-            recurseRename(entity, e, ops, opsCounter);
-        }
-    }
-
-    public void updateFileContent(UserFileEntity entity, String signature, String type) {
-        long timestamp = System.currentTimeMillis();
-        entity.setMtime(timestamp);
-        entity.setDigest(signature);
-        entity.setType(type);
-
-        FileEntity realFile = new FileEntity();
-        realFile.setDigest(signature);
-        realFile.setType(type);
-
-        // keep consistency
-        cassandraTemplate.batchOps()
-                .insert(entity)
-                .insert(realFile)
-                .execute();
-    }
-
-    public void copy(
-            UserFileEntity fromDir,
-            UserFileEntity toDir) {
-        var fromPath = fromDir.getPath();
-        var toPath = toDir.getPath();
-        var path = FileUtil.normalize(toPath + "/" + FileUtil.basename(fromPath));
-        fromDir.setPath(path);
-
-    }
 }
