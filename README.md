@@ -17,7 +17,8 @@
 >
 > size, file size, unit is byte
 >
-## 🐱👮 Artificial restriction of FS
+## 🐱👮 Restrictions of File System
+> 
 > sub item count:   65536
 >
 > file chain level: 128

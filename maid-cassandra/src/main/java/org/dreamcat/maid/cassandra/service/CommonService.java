@@ -2,21 +2,16 @@ package org.dreamcat.maid.cassandra.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.dreamcat.common.util.ObjectUtil;
-import org.dreamcat.common.web.exception.BadRequestException;
-import org.dreamcat.common.web.exception.InternalServerErrorException;
+import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.common.web.exception.UnauthorizedException;
-import org.dreamcat.common.webflux.security.JwtReactiveFactory;
-import org.dreamcat.maid.api.core.PathLevelQuery;
-import org.dreamcat.maid.api.core.PathQuery;
-import org.dreamcat.maid.cassandra.entity.UserEntity;
+import org.dreamcat.common.webflux.security.jwt.JwtReactiveFactory;
+import org.dreamcat.maid.api.controller.file.FileInfoView;
+import org.dreamcat.maid.api.controller.file.FileItemView;
+import org.dreamcat.maid.api.controller.file.FileView;
+import org.dreamcat.maid.cassandra.dao.UserFileDao;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
-import org.springframework.data.cassandra.core.CassandraTemplate;
-import org.springframework.data.cassandra.core.InsertOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ServerWebExchange;
-
-import java.util.UUID;
 
 /**
  * Create by tuke on 2020/3/20
@@ -25,84 +20,55 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Service
 public class CommonService {
-    private final CassandraTemplate cassandraTemplate;
     private final JwtReactiveFactory jwtFactory;
+    private final UserFileDao userFileDao;
+    private final IdGeneratorService idGeneratorService;
 
-    public UUID retrieveUid(ServerWebExchange exchange) {
-        String subject = jwtFactory.getSubject(exchange);
+    public long retrieveUid(ServerWebExchange exchange) {
+        var subject = jwtFactory.getSubject(exchange);
         if (subject == null) {
-            throw new UnauthorizedException("No subject in current request");
+            throw new UnauthorizedException("No token in current request");
         }
-        return UUID.fromString(subject);
+        return Long.parseLong(subject);
     }
 
-    public UserFileEntity rootFileEntity(UUID uid, long timestamp) {
-        UserFileEntity rootDirectory = new UserFileEntity();
-        fillEntity(rootDirectory, timestamp, uid, "/");
-        return rootDirectory;
-    }
+    public UserFileEntity newUserFile(long uid, long pid, String name) {
+        var fid = idGeneratorService.nextFid();
+        var timestmap = System.currentTimeMillis();
 
-    public void createUser(UserEntity user, long timestamp) {
-        UUID uid = user.getId();
-        UserFileEntity rootDirectory = rootFileEntity(uid, timestamp);
-
-        var userResult = cassandraTemplate.insert(user, InsertOptions.builder()
-                .ifNotExists(true).build());
-        if (userResult.wasApplied()) {
-            var rootResult = cassandraTemplate.insert(rootDirectory, InsertOptions.builder()
-                    .ifNotExists(true).build());
-            // root dir already exists but user doesn't exist
-            if (!rootResult.wasApplied()) {
-                log.error("User {} doesn't exist but root dir / does", user.getName());
-                throw new InternalServerErrorException("Inconsistent status on database");
-            }
-        }
-
-    }
-
-    public void fillEntity(UserEntity user, long timestamp) {
-        user.setId(UUID.randomUUID());
-        user.setCtime(timestamp);
-        user.setMtime(timestamp);
-    }
-
-    public void fillEntity(UserFileEntity file, long timestamp, UUID uid, String path) {
-        file.setCtime(timestamp);
-        file.setMtime(timestamp);
+        var file = new UserFileEntity();
+        file.setId(fid);
         file.setUid(uid);
-        file.setPath(path);
+        file.setPid(pid);
+        file.setName(name);
+        file.setCtime(timestmap);
+        file.setMtime(timestmap);
+        return file;
     }
 
     public boolean isFile(UserFileEntity file) {
-        return file.getDigest() != null;
+        return file.getType() != null;
     }
 
     public boolean isDirectory(UserFileEntity file) {
         return !isFile(file);
     }
 
-    public boolean hasPreview(UserFileEntity file) {
-        var type = file.getType();
-        if (ObjectUtil.isBlank(type)) return false;
-        return type.matches("^image/.+$") ||
-                type.matches("^video/.+$");
+    public FileItemView toFileItemView(UserFileEntity userFile) {
+        return BeanCopierUtil.copy(userFile, FileItemView.class);
     }
 
-    // avoid over flow stack
-    public void checkPath(String path) {
-        if (PathQuery.PATTERN_PATH.matcher(path).matches() &&
-                path.split("/").length <= PathLevelQuery.MAX_DIR_LEVEL + 1) {
-            return;
-        }
-        throw new BadRequestException("Invalid path");
+    public FileItemView toFileItemView(FileView fileView) {
+        return BeanCopierUtil.copy(fileView, FileItemView.class);
     }
 
-    public void checkPaths(String... paths) {
-        if (ObjectUtil.isEmpty(paths)) return;
-
-        for (String path : paths) {
-            checkPath(path);
+    public FileInfoView toFileInfoView(UserFileEntity userFile) {
+        var view = BeanCopierUtil.copy(userFile, FileInfoView.class);
+        if (isDirectory(userFile)) {
+            long count = userFileDao.countByPid(userFile.getUid(), userFile.getId());
+            view.setCount(count);
         }
+        return view;
     }
 
 }

@@ -2,7 +2,9 @@ package org.dreamcat.maid.cassandra.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dreamcat.common.hc.okhttp.OkHttpWget;
 import org.dreamcat.maid.api.config.AppProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.PostConstruct;
@@ -17,6 +19,11 @@ import java.util.Arrays;
 @Configuration
 public class BootstrapConfig {
     private final AppProperties appProperties;
+
+    @Bean
+    public OkHttpWget wget() {
+        return new OkHttpWget(true);
+    }
 
     @PostConstruct
     public void init() {

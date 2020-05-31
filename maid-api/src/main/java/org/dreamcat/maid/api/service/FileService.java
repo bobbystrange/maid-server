@@ -1,6 +1,7 @@
 package org.dreamcat.maid.api.service;
 
 import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.maid.api.controller.file.FileInfoView;
 import org.dreamcat.maid.api.controller.file.FileItemView;
 import org.dreamcat.maid.api.controller.file.FileView;
 import org.springframework.web.server.ServerWebExchange;
@@ -13,13 +14,16 @@ import java.util.Map;
  */
 public interface FileService {
 
+    // file
+    RestBody<FileInfoView> file(long fid, ServerWebExchange exchange);
+
     // ls -lh
-    RestBody<List<FileItemView>> list(String path, ServerWebExchange exchange);
+    RestBody<List<FileItemView>> list(long pid, ServerWebExchange exchange);
 
     // tree
-    RestBody<FileView> tree(String path, int level, ServerWebExchange exchange);
+    RestBody<FileView> tree(long pid, int level, ServerWebExchange exchange);
 
     // path  -->  items
-    RestBody<Map<String, List<FileItemView>>> flatTree(String path, ServerWebExchange exchange);
+    RestBody<Map<String, List<FileItemView>>> flatTree(long pid, ServerWebExchange exchange);
 
 }

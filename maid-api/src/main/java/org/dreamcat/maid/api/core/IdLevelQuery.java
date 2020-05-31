@@ -12,8 +12,7 @@ import javax.validation.constraints.NotNull;
  */
 @Getter
 @Setter
-public class PathLevelQuery extends PathQuery {
-
+public class IdLevelQuery extends IdQuery {
     public static final int MAX_DIR_LEVEL = 128;
 
     @NotNull

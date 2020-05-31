@@ -1,231 +1,159 @@
 package org.dreamcat.maid.cassandra.service;
 
 import lombok.RequiredArgsConstructor;
-import org.dreamcat.common.core.Pair;
-import org.dreamcat.common.io.FileUtil;
-import org.dreamcat.common.util.ObjectUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.common.web.exception.ForbiddenException;
-import org.dreamcat.common.web.exception.NotFoundException;
 import org.dreamcat.maid.api.service.FileOpService;
+import org.dreamcat.maid.cassandra.config.RedisConfig;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
-import org.dreamcat.maid.cassandra.entity.UserFileEntity;
-import org.springframework.data.cassandra.core.CassandraBatchOperations;
-import org.springframework.data.cassandra.core.CassandraTemplate;
+import org.springframework.data.redis.core.BoundSetOperations;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ServerWebExchange;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.PostConstruct;
+
+import static org.dreamcat.maid.cassandra.core.RestCodes.*;
 
 /**
  * Create by tuke on 2020/3/23
  */
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class FileOpServiceImpl implements FileOpService {
     private final UserFileDao userFileDao;
     private final CommonService commonService;
-    private final FileChainService fileChainService;
-    private final CassandraTemplate cassandraTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private final RedisConfig redisConfig;
+
+    private BoundSetOperations<String, String> setOps;
+
+    @PostConstruct
+    public void init() {
+        setOps = redisTemplate.boundSetOps(redisConfig.getRemoveUserFileSet());
+    }
 
     @Override
-    public RestBody<?> mkdir(String path, ServerWebExchange exchange) {
-        commonService.checkPath(path);
+    public RestBody<?> mkdir(long pid, String name, ServerWebExchange exchange) {
         var uid = commonService.retrieveUid(exchange);
-        var file = userFileDao.find(uid, path);
-        if (file != null) {
-            return RestBody.ok();
+        var dir = userFileDao.findById(pid);
+        if (dir == null) {
+            return RestBody.error(parent_fid_not_found, "parent fid not found");
         }
-        fileChainService.mkdir(path, uid);
+        if (!dir.getUid().equals(uid)) {
+            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        }
+
+        var file = commonService.newUserFile(uid, pid, name);
+        if (!userFileDao.doInsert(file)) {
+            return RestBody.error(name_already_exist, "name already exists");
+        }
         return RestBody.ok();
     }
 
     @Override
-    public RestBody<?> rename(String path, String name, ServerWebExchange exchange) {
-        commonService.checkPath(path);
+    public RestBody<?> rename(long fid, String name, ServerWebExchange exchange) {
         var uid = commonService.retrieveUid(exchange);
-        var entity = userFileDao.find(uid, path);
-        if (entity == null) {
-            throw new NotFoundException("File " + path + " doesn't exist");
+        var file = userFileDao.findById(fid);
+        if (file == null) {
+            return RestBody.error(fid_not_found, "fid not found");
+        }
+        if (!file.getUid().equals(uid)) {
+            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
         }
 
-        if ("/".equals(path)) {
-            throw new ForbiddenException("Unsupported to rename root directory /");
+        var oldName = file.getName();
+        if (oldName.equals("/")) {
+            return RestBody.error(unsupported_root, "unsupported to rename root directory /");
+        }
+        if (oldName.equals(name)) {
+            return RestBody.error(rename_to_same_name, "cannot rename to same name");
         }
 
-        var parentPath = FileUtil.dirname(path);
-        var newPath = FileUtil.normalize(parentPath + "/" + name);
-        if (userFileDao.find(uid, newPath) != null) {
-            throw new ForbiddenException("File " + newPath + " already exists");
+        var targetFile = userFileDao.findByPidAndName(uid, file.getPid(), name);
+        if (targetFile != null) {
+            return RestBody.error(name_already_exist, "name already exists");
         }
 
-        var timestamp = System.currentTimeMillis();
-        var ops = cassandraTemplate.batchOps();
-        var opsCounter = new AtomicInteger(1 << 10 - 3);
+        if (!userFileDao.doUpdateName(file, name)) {
+            return RestBody.error(rename_failed, "rename failed");
+        }
+        return RestBody.ok();
+    }
 
-        var parentDir = userFileDao.find(uid, parentPath);
-        var oldName = FileUtil.basename(path);
-        parentDir.getItems().remove(oldName);
-        parentDir.getItems().add(name);
-        ops.update(parentDir);
+    // Note that no-atomic op
+    @Override
+    public RestBody<?> move(long fromId, long toId, ServerWebExchange exchange) {
+        var uid = commonService.retrieveUid(exchange);
+        var file = userFileDao.findById(fromId);
+        if (file == null) {
+            return RestBody.error(fid_not_found, "fid is not found");
+        }
+        if (!file.getUid().equals(uid)) {
+            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        }
 
-        var oldEntity = new UserFileEntity();
-        oldEntity.setPath(path);
-        oldEntity.setUid(uid);
-        ops.delete(oldEntity);
+        var pid = file.getPid();
+        var name = file.getName();
+        if (name.equals("/")) {
+            return RestBody.error(unsupported_root, "unsupported to move root directory /");
+        }
 
-        entity.setPath(newPath);
-        entity.setMtime(timestamp);
-        ops.insert(entity);
+        var dir = userFileDao.findById(toId);
+        if (dir == null) {
+            return RestBody.error(target_fid_not_found, "target fid is not found");
+        }
+        if (!dir.getUid().equals(uid)) {
+            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        }
 
-        if (ObjectUtil.isNotEmpty(entity.getItems())) {
-            var entities = userFileDao.findAllItems(entity);
-            for (var e : entities) {
-                recurseRename(entity, e, ops, opsCounter);
+        if (pid.equals(dir.getId())) {
+            return RestBody.error(move_to_same_dir, "cannot move to same dir");
+        }
+
+        var targetFile = userFileDao.findByPidAndName(uid, dir.getId(), name);
+        if (targetFile != null) {
+            return RestBody.error(name_already_exist, "name already exists");
+        }
+
+        file.setPid(dir.getId());
+        if (!userFileDao.doInsert(file)) {
+            return RestBody.error(move_failed, "move failed");
+        }
+
+        userFileDao.deleteByPidAndName(uid, pid, name);
+        return RestBody.ok();
+    }
+
+    // Note that no-atomic op for remove a dir
+    @Override
+    public RestBody<?> remove(long fid, ServerWebExchange exchange) {
+        var uid = commonService.retrieveUid(exchange);
+        var file = userFileDao.findById(fid);
+        if (file == null) {
+            return RestBody.error(fid_not_found, "fid is not found");
+        }
+        if (!file.getUid().equals(uid)) {
+            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        }
+
+        if (!userFileDao.doDeleteByPidAndName(uid, file.getPid(), file.getName())) {
+            return RestBody.error(fid_not_found, "fid not found");
+        }
+
+        if (commonService.isDirectory(file)) {
+            try {
+                setOps.add(uid + ":" + fid);
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                userFileDao.insert(file);
+                return RestBody.error(remove_failed, "remove failed");
             }
         }
-        ops.execute();
+
         return RestBody.ok();
     }
 
-    private void recurseRename(UserFileEntity parent, UserFileEntity entity, CassandraBatchOperations ops, AtomicInteger opsCounter) {
-        if (opsCounter.get() < 0) {
-            throw new ForbiddenException("Too many entities (expect less than or equals 1024)");
-        }
-
-        var oldEntity = new UserFileEntity();
-        oldEntity.setPath(entity.getPath());
-        oldEntity.setUid(entity.getUid());
-        ops.delete(oldEntity);
-        opsCounter.getAndDecrement();
-
-        entity.setPath(FileUtil.normalize(parent.getPath() + "/" + FileUtil.basename(entity.getPath())));
-        entity.setMtime(parent.getMtime());
-        ops.insert(entity);
-        opsCounter.getAndDecrement();
-
-        var items = entity.getItems();
-        if (ObjectUtil.isEmpty(items)) return;
-
-        var entities = userFileDao.findAllItems(entity);
-        for (var e : entities) {
-            recurseRename(entity, e, ops, opsCounter);
-        }
-    }
-
-    @Override
-    public RestBody<?> move(String fromPath, String toPath, ServerWebExchange exchange) {
-        fileChainService.moveOrCopy(fromPath, toPath, exchange, true);
-        return RestBody.ok();
-    }
-
-    @Override
-    public RestBody<?> copy(String fromPath, String toPath, ServerWebExchange exchange) {
-        fileChainService.moveOrCopy(fromPath, toPath, exchange, false);
-        return RestBody.ok();
-    }
-
-    @Override
-    public RestBody<?> remove(String path, ServerWebExchange exchange) {
-        commonService.checkPath(path);
-        var uid = commonService.retrieveUid(exchange);
-        var entity = userFileDao.find(uid, path);
-        if (entity == null) {
-            throw new NotFoundException("File " + path + " doesn't exist");
-        }
-
-        var ops = cassandraTemplate.batchOps();
-        var opsCounter = new AtomicInteger(1024);
-
-        // need update parent dir's items;
-        if (!path.equals("/")) {
-            var basename = FileUtil.basename(path);
-            var dirname = FileUtil.dirname(path);
-            var dir = userFileDao.find(uid, dirname);
-            var items = dir.getItems();
-            items.remove(basename);
-            dir.setItems(items);
-            ops.update(dir);
-            opsCounter.decrementAndGet();
-        }
-
-        if (commonService.isFile(entity)) {
-            ops.delete(entity).execute();
-            return RestBody.ok();
-        }
-
-        recurseRemove(entity, ops, opsCounter);
-        ops.execute();
-        return RestBody.ok();
-    }
-
-    private void recurseRemove(UserFileEntity entity, CassandraBatchOperations ops, AtomicInteger opsCounter) {
-        // avoid oom
-        if (opsCounter.get() <= 0) {
-            throw new ForbiddenException("Too many entities (expect less than or equals 1024)");
-        }
-        ops.delete(entity);
-        opsCounter.decrementAndGet();
-
-        if (commonService.isFile(entity)) return;
-
-        var items = userFileDao.findAllItems(entity);
-        for (UserFileEntity item : items) {
-            recurseRemove(item, ops, opsCounter);
-        }
-    }
-
-    @Override
-    public RestBody<?> removeNumerous(String path, ServerWebExchange exchange) {
-        commonService.checkPath(path);
-        var uid = commonService.retrieveUid(exchange);
-        var entity = userFileDao.find(uid, path);
-        if (entity == null) {
-            throw new NotFoundException("File " + path + " doesn't exist");
-        }
-
-        var ops = cassandraTemplate.batchOps();
-        var opsCounter = new AtomicInteger(1024);
-
-        // need update parent dir's items;
-        if (!path.equals("/")) {
-            var basename = FileUtil.basename(path);
-            var dirname = FileUtil.dirname(path);
-            var dir = userFileDao.find(uid, dirname);
-            var items = dir.getItems();
-            items.remove(basename);
-            dir.setItems(items);
-            ops.update(dir);
-            opsCounter.decrementAndGet();
-        }
-
-        if (commonService.isFile(entity)) {
-            ops.delete(entity).execute();
-            return RestBody.ok();
-        }
-
-        var pair = new Pair<>(ops, opsCounter);
-        recurseRemoveNumerous(entity, pair);
-        pair.first().execute();
-        return RestBody.ok();
-    }
-
-    private void recurseRemoveNumerous(UserFileEntity entity, Pair<CassandraBatchOperations, AtomicInteger> pair) {
-        // avoid oom
-        if (pair.second().get() <= 0) {
-            pair.first().execute();
-            var newOps = cassandraTemplate.batchOps();
-            pair.setFirst(newOps);
-            pair.second().set(1 << 10);
-        }
-        pair.first().delete(entity);
-        pair.second().decrementAndGet();
-
-        if (commonService.isFile(entity)) return;
-
-        var items = userFileDao.findAllItems(entity);
-        for (UserFileEntity item : items) {
-            recurseRemoveNumerous(item, pair);
-        }
-    }
 }

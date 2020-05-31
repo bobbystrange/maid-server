@@ -1,10 +1,12 @@
 package org.dreamcat.maid.cassandra.dao;
 
 import lombok.RequiredArgsConstructor;
-import org.dreamcat.common.io.FileUtil;
-import org.dreamcat.common.util.ObjectUtil;
+import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.cassandra.core.CassandraTemplate;
+import org.springframework.data.cassandra.core.DeleteOptions;
+import org.springframework.data.cassandra.core.InsertOptions;
 import org.springframework.data.cassandra.core.query.Criteria;
 import org.springframework.data.cassandra.core.query.Query;
 import org.springframework.stereotype.Repository;
@@ -12,8 +14,6 @@ import org.springframework.stereotype.Repository;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Create by tuke on 2020/3/17
@@ -23,53 +23,81 @@ import java.util.stream.Collectors;
 public class UserFileDao {
     private final CassandraTemplate cassandraTemplate;
 
-    public UserFileEntity find(UUID uid, String path) {
-        Query query = Query.query(Criteria.where("path").is(path))
-                .and(Criteria.where("uid").is(uid));
+    public UserFileEntity findById(long fid) {
+        var query = Query.query(Criteria.where("id").is(fid));
+        try {
+            return cassandraTemplate.selectOne(query, UserFileEntity.class);
+        } catch (DataAccessException e) {
+            return null;
+        }
+    }
+
+    public UserFileEntity findByPidAndName(long uid, long pid, String name) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid))
+                .and(Criteria.where("name").is(name));
         return cassandraTemplate.selectOne(query, UserFileEntity.class);
     }
 
-    public List<UserFileEntity> findAllItems(UserFileEntity directory) {
-        if (ObjectUtil.isEmpty(directory.getItems())) {
-            return Collections.emptyList();
-        }
-        return findAll(directory.getUid(), directory.getItems(), directory.getPath());
-    }
-
-    public List<UserFileEntity> findAll(UUID uid, Collection<String> names, String directoryPath) {
-        List<String> paths = names.stream()
-                .map(it -> FileUtil.normalize(directoryPath + "/" + it))
-                .collect(Collectors.toList());
-        return findAll(uid, paths);
-    }
-
-    public List<UserFileEntity> findAll(UUID uid, List<String> paths) {
-        Query query = Query.query(Criteria.where("path").in(paths))
-                .and(Criteria.where("uid").is(uid));
+    public List<? extends UserFileEntity> findAllByPid(long uid, long pid) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid));
         return cassandraTemplate.select(query, UserFileEntity.class);
     }
 
-    public void saveAll(List<UserFileEntity> entities) {
-        cassandraTemplate.batchOps().insert(entities).execute();
+    public long countByPid(long uid, long pid) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid));
+        return cassandraTemplate.count(query, UserFileEntity.class);
     }
 
-    public void delete(UserFileEntity entity) {
-        cassandraTemplate.delete(entity);
+    public void insert(UserFileEntity entity) {
+        cassandraTemplate.insert(entity);
     }
 
-    public void delete(UUID uid, String path) {
-        Query query = Query.query(Criteria.where("path").is(path))
-                .and(Criteria.where("uid").is(uid));
+    public boolean doInsert(UserFileEntity entity) {
+        return cassandraTemplate.insert(entity, InsertOptions.builder()
+                .withIfNotExists()
+                .build()).wasApplied();
+    }
+
+    public boolean doUpdateName(UserFileEntity entity, String name) {
+        var newEntity = BeanCopierUtil.copy(entity);
+        newEntity.setName(name);
+        return cassandraTemplate.batchOps()
+                .delete(Collections.singleton(entity), DeleteOptions.builder()
+                        .withIfExists()
+                        .build())
+                .insert(Collections.singleton(newEntity), InsertOptions.builder()
+                        .withIfNotExists()
+                        .build())
+                .execute().wasApplied();
+    }
+
+    public boolean doDeleteByPidAndName(long uid, long pid, String name) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid))
+                .and(Criteria.where("name").is(name))
+                .queryOptions(DeleteOptions.builder().withIfExists().build());
+        return cassandraTemplate.delete(query, UserFileEntity.class);
+    }
+
+    public void deleteByPidAndName(long uid, long pid, String name) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid))
+                .and(Criteria.where("name").is(name));
         cassandraTemplate.delete(query, UserFileEntity.class);
     }
 
-    public void deleteAll(Collection<UserFileEntity> entities) {
-        cassandraTemplate.batchOps().delete(entities).execute();
+    public void deleteByPidAndNames(long uid, long pid, Collection<String> names) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid))
+                .and(Criteria.where("name").in(names));
+        cassandraTemplate.delete(query, UserFileEntity.class);
     }
 
-    public void deleteAll(UUID uid, List<String> paths) {
-        Query query = Query.query(Criteria.where("path").in(paths))
-                .and(Criteria.where("uid").is(uid));
+    public void deleteByUid(long uid) {
+        var query = Query.query(Criteria.where("uid").is(uid));
         cassandraTemplate.delete(query, UserFileEntity.class);
     }
 }

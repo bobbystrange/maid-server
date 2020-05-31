@@ -2,29 +2,25 @@ package org.dreamcat.maid.cassandra.entity;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.Indexed;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
 
 /**
- * Create by tuke on 2020/2/6
+ * Create by tuke on 2020/5/24
  */
 @Getter
 @Setter
-@Table("user")
-public class UserEntity {
+@Table("share_file")
+public class ShareFileEntity {
     @PrimaryKey
     private Long id;
     @Indexed
-    private String name;
+    private Long uid;
+    @Indexed
+    private Long fid;
 
     private Long ctime;
-    private Long mtime;
     private String password;
-    private String email;
-    @Column("first_name")
-    private String firstName;
-    @Column("last_name")
-    private String lastName;
+    private Long ttl;
 }

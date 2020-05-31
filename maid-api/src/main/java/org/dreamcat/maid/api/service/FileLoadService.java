@@ -1,6 +1,7 @@
 package org.dreamcat.maid.api.service;
 
 import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.maid.api.controller.file.ShareFileQuery;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -9,10 +10,10 @@ import org.springframework.web.server.ServerWebExchange;
  */
 public interface FileLoadService {
 
-    RestBody<?> uploadFile(String directoryPath, FilePart filePart, ServerWebExchange exchange);
+    RestBody<?> upload(long pid, FilePart filePart, ServerWebExchange exchange);
 
-    RestBody<String> downloadFile(String path, boolean asAttachment, ServerWebExchange exchange);
+    RestBody<String> download(long fid, boolean attachment, ServerWebExchange exchange);
 
-    RestBody<String> shareFile(String id);
+    RestBody<Long> share(ShareFileQuery query, ServerWebExchange exchange);
 
 }

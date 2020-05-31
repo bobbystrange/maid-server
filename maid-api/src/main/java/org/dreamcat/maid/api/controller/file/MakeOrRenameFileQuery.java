@@ -2,7 +2,7 @@ package org.dreamcat.maid.api.controller.file;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.dreamcat.maid.api.core.PathQuery;
+import org.dreamcat.maid.api.core.IdQuery;
 
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
@@ -12,7 +12,7 @@ import javax.validation.constraints.Pattern;
  */
 @Getter
 @Setter
-public class RenameFileQuery extends PathQuery {
+public class MakeOrRenameFileQuery extends IdQuery {
     @NotEmpty
     @Pattern(regexp = "^[^/]{1,255}$")
     private String name;

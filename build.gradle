@@ -19,11 +19,13 @@ subprojects {
         annotationProcessor "org.projectlombok:lombok:$lombokVersion"
         testCompileOnly "org.projectlombok:lombok:$lombokVersion"
         testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
-        // ./gradlew --refresh-dependencies
+
+        implementation 'org.dreamcat:common-web:0.0.1'
         implementation('org.dreamcat:common-webflux:0.0.1') {
             // disable JPA
             exclude group: 'jakarta.persistence', module: 'jakarta.persistence-api'
         }
+        implementation 'org.dreamcat:common-webflux-security:0.0.1'
         implementation 'org.dreamcat.pepper:rita-auth:0.1.0'
 
         implementation "org.apache.tika:tika-core:1.24"

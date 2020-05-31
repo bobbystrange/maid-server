@@ -2,3 +2,4 @@ rootProject.name = 'maid-server'
 
 include 'maid-api'
 include 'maid-cassandra'
+include 'maid-jpa'

@@ -31,7 +31,8 @@ public class UserController {
      * @apiDescription it will delete all data associated the user
      * @apiName DeleteUser
      * @apiGroup User
-     * @apiSuccess {Number} code 0,
+     * @apiSuccess (Success 200 code = 0) code 0
+     * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
     @RequestMapping(method = RequestMethod.DELETE)
     public Mono<RestBody<?>> deleteUser(ServerWebExchange exchange) {
@@ -44,11 +45,11 @@ public class UserController {
 
     /**
      * @api {get} /user Get user
-     * @apiDescription it will delete all data associated the user
+     * @apiDescription Get user information
      * @apiName GetUser
      * @apiGroup User
-     * @apiSuccess {Number} code 0
-     * @apiError (Error 404) {Number} code -1, user has been deleted
+     * @apiSuccess (Success 200 code = 0) code 0
+     * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
     @RequestMapping(method = RequestMethod.GET)
     public Mono<RestBody<?>> getUser(ServerWebExchange exchange) {
@@ -57,11 +58,13 @@ public class UserController {
 
     /**
      * @api {get} /user/avatar Get avatar
-     * @apiDescription get avatar base64 image
+     * @apiDescription Get avatar base64 image
      * @apiName GetAvatar
      * @apiGroup User
-     * @apiSuccess {Number} code 0
-     * @apiError (Error 404) {Number} code -1, user has no avatar
+     * @apiSuccess (Success 200) base64 image source
+     * @apiError (Error 404 code = 1) user has no avatar
+     * @apiSuccessExample {text} Success-Response:
+     * data:image/gif;base64,xxx
      */
     @RequestMapping(path = {"/avatar"}, method = RequestMethod.GET)
     public Mono<String> getAvatar(ServerWebExchange exchange) {
@@ -70,11 +73,11 @@ public class UserController {
 
     /**
      * @api {put} /user Update user
-     * @apiDescription update user
+     * @apiDescription Update user information
      * @apiName UpdateUser
      * @apiGroup User
-     * @apiSuccess {Number} code 0
-     * @apiError (Error 404) {Number} code -1, user has been deleted
+     * @apiSuccess (Success 200 code = 0) code 0
+     * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
     @RequestMapping(method = RequestMethod.PUT)
     public Mono<RestBody<?>> updateUser(

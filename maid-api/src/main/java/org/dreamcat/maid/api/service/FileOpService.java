@@ -9,20 +9,15 @@ import org.springframework.web.server.ServerWebExchange;
 public interface FileOpService {
 
     // mkdir
-    RestBody<?> mkdir(String path, ServerWebExchange exchange);
+    RestBody<?> mkdir(long pid, String name, ServerWebExchange exchange);
 
     // mv in same directory
-    RestBody<?> rename(String path, String name, ServerWebExchange exchange);
+    RestBody<?> rename(long fid, String name, ServerWebExchange exchange);
 
     // mv
-    RestBody<?> move(String fromPath, String toPath, ServerWebExchange exchange);
+    RestBody<?> move(long fromId, long toId, ServerWebExchange exchange);
 
-    // cp -r
-    RestBody<?> copy(String fromPath, String toPath, ServerWebExchange exchange);
-
-    RestBody<?> remove(String path, ServerWebExchange exchange);
-
-    // Note that it doesn't guarantee the atomicity of the operation
-    RestBody<?> removeNumerous(String path, ServerWebExchange exchange);
+    // rm
+    RestBody<?> remove(long fid, ServerWebExchange exchange);
 
 }

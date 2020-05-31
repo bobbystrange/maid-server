@@ -1,6 +1,7 @@
 package org.dreamcat.maid.api.config;
 
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -11,6 +12,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AppProperties {
     private FilePath filePath;
     private Rest rest;
+    private int fetchSize = 256;
+    private int batchSize = 65536;
+    private long datacenterId = 0;
+
+    @Value("${app.auth.key-prefix}")
+    private String keyPrefix;
 
     @Data
     public static class FilePath {

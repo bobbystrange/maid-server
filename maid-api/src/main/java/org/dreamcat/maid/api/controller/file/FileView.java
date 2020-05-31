@@ -12,14 +12,7 @@ import java.util.List;
 @Setter
 @Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class FileView {
+public class FileView extends FileItemView {
     private String path;
-    private String name;
-    private Long ctime;
-    private Long mtime;
-    // only file
-    private String type;
-    private Long size;
-    // only dir
     private List<FileView> items;
 }

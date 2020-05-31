@@ -8,8 +8,6 @@ import org.springframework.data.cassandra.core.query.Query;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
-import java.util.UUID;
-
 /**
  * Create by tuke on 2020/3/21
  */
@@ -18,13 +16,13 @@ import java.util.UUID;
 public class AvatarDao {
     private final CassandraTemplate cassandraTemplate;
 
-    public AvatarEntity find(UUID uid) {
+    public AvatarEntity find(Long uid) {
         var query = Query.query(Criteria.where("uid").is(uid))
                 .sort(Sort.by(Sort.Direction.DESC, "ctime"));
         return cassandraTemplate.selectOne(query, AvatarEntity.class);
     }
 
-    public void delete(UUID uid) {
+    public void delete(Long uid) {
         Query query = Query.query(Criteria.where("uid").is(uid));
         cassandraTemplate.delete(query, AvatarEntity.class);
     }

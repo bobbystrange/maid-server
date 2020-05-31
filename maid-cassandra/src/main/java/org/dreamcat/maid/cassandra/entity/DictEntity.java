@@ -11,8 +11,8 @@ import org.springframework.data.cassandra.core.mapping.Table;
  */
 @Getter
 @Setter
-@Table("dictionary")
-public class DictionaryEntity {
+@Table("dict")
+public class DictEntity {
     // many-to-many
     @PrimaryKeyColumn(type = PrimaryKeyType.PARTITIONED)
     private String key;
