@@ -38,20 +38,20 @@ public class RestService {
         return UrlUtil.concatUrl(baseUrl, queryMap);
     }
 
-    private Map<String, String> newUploadQueryMap(String digest) {
+    private Map<String, Object> newUploadQueryMap(String digest) {
         var query = new UploadQuery();
         query.setDigest(digest);
         query.setTimestamp(System.currentTimeMillis());
         query.setNonce(RandomUtil.randi(1 << 16));
 
-        var queryMap = BeanMapUtil.toProps(query);
+        var queryMap = BeanMapUtil.toMap(query);
         var rawStr = UrlUtil.toSortedQueryString(queryMap);
         var sign = SignUtil.hs512Base64(rawStr, properties.getRest().getSignKey());
         queryMap.put("sign", sign);
         return queryMap;
     }
 
-    private Map<String, String> newDownLoadQueryMap(String digest, String filename, String type, boolean asAttachment) {
+    private Map<String, Object> newDownLoadQueryMap(String digest, String filename, String type, boolean asAttachment) {
         var query = new DownloadQuery();
         query.setDigest(digest);
         query.setTimestamp(System.currentTimeMillis());
@@ -60,7 +60,7 @@ public class RestService {
         query.setType(type);
         query.setAsAttachment(asAttachment);
 
-        var queryMap = BeanMapUtil.toProps(query);
+        var queryMap = BeanMapUtil.toMap(query);
         var rawStr = UrlUtil.toSortedQueryString(queryMap);
         var sign = SignUtil.hs512Base64(rawStr, properties.getRest().getSignKey());
         queryMap.put("sign", sign);

@@ -1,7 +1,10 @@
 {
-  "name": "maid-server",
+  "name": "maid-api",
   "version": "0.1.0",
-  "description": "maid-server api docs",
   "title": "Meter Maid API Docs",
-  "url": "http://api.maid.singlar.org/v1"
+  "url": "http://api.maid.singlar.org/v1",
+  "header": {
+    "title": "Get Start",
+    "filename": "README.md"
+  }
 }

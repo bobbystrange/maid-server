@@ -9,13 +9,16 @@ import org.springframework.web.server.ServerWebExchange;
 public interface FileOpService {
 
     // mkdir
-    RestBody<?> mkdir(long pid, String name, ServerWebExchange exchange);
+    RestBody<Long> mkdir(long pid, String name, ServerWebExchange exchange);
 
     // mv in same directory
     RestBody<?> rename(long fid, String name, ServerWebExchange exchange);
 
     // mv
     RestBody<?> move(long fromId, long toId, ServerWebExchange exchange);
+
+    // cp
+    RestBody<?> copy(long fromId, long toId, ServerWebExchange exchange);
 
     // rm
     RestBody<?> remove(long fid, ServerWebExchange exchange);

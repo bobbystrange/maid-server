@@ -21,8 +21,7 @@ import javax.validation.Valid;
 @Slf4j
 @RequiredArgsConstructor
 @RestController
-@RequestMapping(path = AppConfig.API_PREFIX + "/user",
-        consumes = {MediaType.APPLICATION_JSON_VALUE})
+@RequestMapping(path = AppConfig.API_PREFIX + "/user")
 public class UserController {
     private final UserService userService;
 
@@ -52,7 +51,7 @@ public class UserController {
      * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
     @RequestMapping(method = RequestMethod.GET)
-    public Mono<RestBody<?>> getUser(ServerWebExchange exchange) {
+    public Mono<RestBody<UserView>> getUser(ServerWebExchange exchange) {
         return Mono.fromCallable(() -> userService.getUser(exchange));
     }
 
@@ -79,7 +78,7 @@ public class UserController {
      * @apiSuccess (Success 200 code = 0) code 0
      * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
-    @RequestMapping(method = RequestMethod.PUT)
+    @RequestMapping(method = RequestMethod.PUT, consumes = {MediaType.APPLICATION_JSON_VALUE})
     public Mono<RestBody<?>> updateUser(
             @Valid @RequestBody Mono<UpdateUserQuery> query,
             ServerWebExchange exchange) {

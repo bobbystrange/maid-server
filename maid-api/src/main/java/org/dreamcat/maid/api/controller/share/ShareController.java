@@ -43,8 +43,8 @@ public class ShareController {
      * @apiError (Error 200 code = 3) code wrong password
      * @apiError (Error 200 code = 4) code shared file is expired
      * @apiError (Error 200 code = 5) code shared file is already invalid since its linked file is moved
-     * @apiError (Error 200 code = 6) code shared path not found
-     * @apiError (Error 200 code = 8) code shared path not dir
+     * @apiError (Error 200 code = 6) code shared path is not found
+     * @apiError (Error 200 code = 7) code shared path is not a dir
      * @apiPermission anonymous
      */
     @RequestMapping(path = "/file", method = RequestMethod.GET)
@@ -67,9 +67,9 @@ public class ShareController {
      * @apiError (Error 200 code = 3) code wrong password
      * @apiError (Error 200 code = 4) code shared file is expired
      * @apiError (Error 200 code = 5) code shared file is already invalid since its linked file is moved
-     * @apiError (Error 200 code = 6) code shared path not found
-     * @apiError (Error 200 code = 8) code shared path not dir
-     * @apiError (Error 200 code = 9) code shared path has excessive sub items, over 1024
+     * @apiError (Error 200 code = 6) code shared path is not found
+     * @apiError (Error 200 code = 7) code shared path is not a dir
+     * @apiError (Error 200 code = 8) code shared path has excessive subitems
      * @apiPermission anonymous
      */
     @RequestMapping(path = "/list", method = RequestMethod.GET)
@@ -93,8 +93,8 @@ public class ShareController {
      * @apiError (Error 200 code = 3) code wrong password
      * @apiError (Error 200 code = 4) code shared file is expired
      * @apiError (Error 200 code = 5) code shared file is already invalid since its linked file is moved
-     * @apiError (Error 200 code = 6) code shared path not found
-     * @apiError (Error 200 code = 7) code shared path not file
+     * @apiError (Error 200 code = 6) code shared path is not found
+     * @apiError (Error 200 code = 7) code shared path is not a file
      * @apiPermission anonymous
      */
     @RequestMapping(path = "/download", method = RequestMethod.POST)

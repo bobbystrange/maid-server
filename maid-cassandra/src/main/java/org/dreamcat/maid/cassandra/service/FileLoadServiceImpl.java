@@ -3,6 +3,7 @@ package org.dreamcat.maid.cassandra.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.crypto.MD5Util;
+import org.dreamcat.common.exception.BreakException;
 import org.dreamcat.common.hc.okhttp.OkHttpWget;
 import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.util.RandomUtil;
@@ -64,7 +65,7 @@ public class FileLoadServiceImpl implements FileLoadService {
         }
 
         if (commonService.isFile(dir)) {
-            return RestBody.error(fid_not_diretory, "fid is not a diretory");
+            return RestBody.error(fid_not_diretory, "fid not diretory");
         }
 
         var name = filePart.filename();
@@ -78,7 +79,7 @@ public class FileLoadServiceImpl implements FileLoadService {
                 type = TikaUtil.detect(tempFile);
             } catch (IOException e) {
                 log.error(e.getMessage());
-                throw new InternalServerErrorException(sign_or_io_failed, "Sign error");
+                throw new InternalServerErrorException("Sign error");
             }
 
             var file = new File(properties.getFilePath().getUpload(), sign);
@@ -87,7 +88,7 @@ public class FileLoadServiceImpl implements FileLoadService {
                     Files.move(tempFile.toPath(), file.toPath());
                 } catch (IOException e) {
                     log.error(e.getMessage());
-                    throw new InternalServerErrorException(sign_or_io_failed, "I/O error");
+                    throw new InternalServerErrorException("I/O error");
                 }
             }
             var size = file.length();
@@ -118,14 +119,14 @@ public class FileLoadServiceImpl implements FileLoadService {
             throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
         }
         if (commonService.isDirectory(file)) {
-            return RestBody.error(fid_not_file, "fid is not a file");
+            return RestBody.error(fid_not_file, "fid not file");
         }
 
         var digest = file.getDigest();
         var domain = instanceService.findMostIdleDomainAddress(digest);
         if (domain == null) {
             log.error("No available instances for download {}", digest);
-            throw new InternalServerErrorException(download_no_available_instances, "no available instances");
+            throw new InternalServerErrorException("no available instances");
         }
         var name = file.getName();
         var type = file.getType();
@@ -140,17 +141,14 @@ public class FileLoadServiceImpl implements FileLoadService {
 
     @Override
     public RestBody<Long> share(ShareFileQuery query, ServerWebExchange exchange) {
-        var uid = commonService.retrieveUid(exchange);
         var fid = query.getId();
         var password = query.getPassword();
         var ttl = query.getTtl();
 
-        var userFile = userFileDao.findById(fid);
-        if (userFile == null) {
-            return RestBody.error(fid_not_found, "fid not found");
-        }
-        if (!userFile.getUid().equals(uid)) {
-            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        try {
+            commonService.checkFid(fid, exchange);
+        } catch (BreakException e) {
+            return e.getData();
         }
 
         password = passwordEncoder.encode(password);
@@ -187,7 +185,7 @@ public class FileLoadServiceImpl implements FileLoadService {
             var address = instanceService.findFreestAddress();
             if (address == null) {
                 log.error("No available instances for upload {}", digest);
-                throw new InternalServerErrorException(upload_no_available_instances, "no available instances");
+                throw new InternalServerErrorException("no available instances");
             }
             var domain = instanceService.mapAddressToDomain(address);
             String url = restService.concatUploadURL(digest, domain);
@@ -202,11 +200,11 @@ public class FileLoadServiceImpl implements FileLoadService {
                     return applied;
                 } else {
                     log.error("{} {} on upload file {} to {}", res.code(), res.message(), digest, domain);
-                    throw new InternalServerErrorException(upload_save_hub_failed, "upload save hub failed");
+                    throw new InternalServerErrorException("upload save hub failed");
                 }
             } catch (IOException e) {
                 log.error("Error on upload file {} to {}, caused by `{}`", digest, domain, e.getMessage());
-                throw new InternalServerErrorException(upload_save_hub_failed, "upload save hub failed");
+                throw new InternalServerErrorException("upload save hub failed");
             }
         } finally {
             if (realFile.exists() && !realFile.delete()) {

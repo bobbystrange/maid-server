@@ -32,14 +32,14 @@ public class UserFileDao {
         }
     }
 
-    public UserFileEntity findByPidAndName(long uid, long pid, String name) {
+    public UserFileEntity find(long uid, long pid, String name) {
         var query = Query.query(Criteria.where("uid").is(uid))
                 .and(Criteria.where("pid").is(pid))
                 .and(Criteria.where("name").is(name));
         return cassandraTemplate.selectOne(query, UserFileEntity.class);
     }
 
-    public List<? extends UserFileEntity> findAllByPid(long uid, long pid) {
+    public List<? extends UserFileEntity> findByPid(long uid, long pid) {
         var query = Query.query(Criteria.where("uid").is(uid))
                 .and(Criteria.where("pid").is(pid));
         return cassandraTemplate.select(query, UserFileEntity.class);
@@ -61,6 +61,35 @@ public class UserFileDao {
                 .build()).wasApplied();
     }
 
+    public boolean doDelete(long uid, long pid, String name) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid))
+                .and(Criteria.where("name").is(name))
+                .queryOptions(DeleteOptions.builder().withIfExists().build());
+        return cassandraTemplate.delete(query, UserFileEntity.class);
+    }
+
+    public void delete(long uid, long pid, String name) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid))
+                .and(Criteria.where("name").is(name));
+        cassandraTemplate.delete(query, UserFileEntity.class);
+    }
+
+    public void deleteAllByNames(long uid, long pid, Collection<String> names) {
+        var query = Query.query(Criteria.where("uid").is(uid))
+                .and(Criteria.where("pid").is(pid))
+                .and(Criteria.where("name").in(names));
+        cassandraTemplate.delete(query, UserFileEntity.class);
+    }
+
+    public void deleteByUid(long uid) {
+        var query = Query.query(Criteria.where("uid").is(uid));
+        cassandraTemplate.delete(query, UserFileEntity.class);
+    }
+
+    ///
+
     public boolean doUpdateName(UserFileEntity entity, String name) {
         var newEntity = BeanCopierUtil.copy(entity);
         newEntity.setName(name);
@@ -74,30 +103,28 @@ public class UserFileDao {
                 .execute().wasApplied();
     }
 
-    public boolean doDeleteByPidAndName(long uid, long pid, String name) {
-        var query = Query.query(Criteria.where("uid").is(uid))
-                .and(Criteria.where("pid").is(pid))
-                .and(Criteria.where("name").is(name))
-                .queryOptions(DeleteOptions.builder().withIfExists().build());
-        return cassandraTemplate.delete(query, UserFileEntity.class);
+    public boolean doMove(UserFileEntity entity, long newPid) {
+        var newEntity = BeanCopierUtil.copy(entity);
+        newEntity.setPid(newPid);
+        return cassandraTemplate.batchOps()
+                .delete(Collections.singleton(entity), DeleteOptions.builder()
+                        .withIfExists()
+                        .build())
+                .insert(Collections.singleton(newEntity), InsertOptions.builder()
+                        .withIfNotExists()
+                        .build())
+                .execute().wasApplied();
     }
 
-    public void deleteByPidAndName(long uid, long pid, String name) {
-        var query = Query.query(Criteria.where("uid").is(uid))
-                .and(Criteria.where("pid").is(pid))
-                .and(Criteria.where("name").is(name));
-        cassandraTemplate.delete(query, UserFileEntity.class);
+    public boolean doCopy(UserFileEntity entity, long newPid, long newFid) {
+        var newEntity = BeanCopierUtil.copy(entity);
+        newEntity.setId(newFid);
+        newEntity.setPid(newPid);
+        return cassandraTemplate.batchOps()
+                .insert(Collections.singleton(newEntity), InsertOptions.builder()
+                        .withIfNotExists()
+                        .build())
+                .execute().wasApplied();
     }
 
-    public void deleteByPidAndNames(long uid, long pid, Collection<String> names) {
-        var query = Query.query(Criteria.where("uid").is(uid))
-                .and(Criteria.where("pid").is(pid))
-                .and(Criteria.where("name").in(names));
-        cassandraTemplate.delete(query, UserFileEntity.class);
-    }
-
-    public void deleteByUid(long uid) {
-        var query = Query.query(Criteria.where("uid").is(uid));
-        cassandraTemplate.delete(query, UserFileEntity.class);
-    }
 }

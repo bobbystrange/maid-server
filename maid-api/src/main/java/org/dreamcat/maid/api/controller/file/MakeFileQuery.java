@@ -12,8 +12,8 @@ import javax.validation.constraints.Pattern;
  */
 @Getter
 @Setter
-public class MakeOrRenameFileQuery extends IdQuery {
+public class MakeFileQuery extends IdQuery {
     @NotEmpty
-    @Pattern(regexp = "^[^/]{1,255}$")
+    @Pattern(regexp = "^.{0,1023}$")
     private String name;
 }

@@ -26,7 +26,7 @@ public class IdGeneratorService {
         var workId = 0L;
         long lastWordId;
         while ((lastWordId = idGeneratorDao.nextWorkId(workId)) >= 0) {
-            workId = lastWordId;
+            workId = lastWordId + 1;
         }
 
         var datacenterId = properties.getDatacenterId();

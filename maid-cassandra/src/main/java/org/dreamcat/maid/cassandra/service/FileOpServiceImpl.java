@@ -2,11 +2,18 @@ package org.dreamcat.maid.cassandra.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dreamcat.common.exception.BreakException;
 import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.common.web.exception.BadRequestException;
 import org.dreamcat.common.web.exception.ForbiddenException;
+import org.dreamcat.common.web.exception.InternalServerErrorException;
+import org.dreamcat.maid.api.core.IdLevelQuery;
 import org.dreamcat.maid.api.service.FileOpService;
 import org.dreamcat.maid.cassandra.config.RedisConfig;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
+import org.dreamcat.maid.cassandra.entity.UserFileEntity;
+import org.springframework.data.cassandra.core.CassandraTemplate;
+import org.springframework.data.cassandra.core.InsertOptions;
 import org.springframework.data.redis.core.BoundSetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -24,136 +31,215 @@ import static org.dreamcat.maid.cassandra.core.RestCodes.*;
 @Service
 public class FileOpServiceImpl implements FileOpService {
     private final UserFileDao userFileDao;
+    private final CassandraTemplate cassandraTemplate;
     private final CommonService commonService;
     private final StringRedisTemplate redisTemplate;
     private final RedisConfig redisConfig;
+    private final IdGeneratorService idGeneratorService;
 
-    private BoundSetOperations<String, String> setOps;
+    private BoundSetOperations<String, String> copyUserFileSetOps;
+    private BoundSetOperations<String, String> removeUserFileSetOps;
 
     @PostConstruct
     public void init() {
-        setOps = redisTemplate.boundSetOps(redisConfig.getRemoveUserFileSet());
+        copyUserFileSetOps = redisTemplate.boundSetOps(redisConfig.getCopyUserFileSet());
+        removeUserFileSetOps = redisTemplate.boundSetOps(redisConfig.getRemoveUserFileSet());
     }
 
     @Override
-    public RestBody<?> mkdir(long pid, String name, ServerWebExchange exchange) {
-        var uid = commonService.retrieveUid(exchange);
-        var dir = userFileDao.findById(pid);
-        if (dir == null) {
-            return RestBody.error(parent_fid_not_found, "parent fid not found");
+    public RestBody<Long> mkdir(long pid, String name, ServerWebExchange exchange) {
+        if (name.startsWith("/") || name.endsWith("/")) {
+            throw new BadRequestException("invalid name");
         }
-        if (!dir.getUid().equals(uid)) {
-            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        // no // in name
+        if (name.replaceAll("/+", "/").length() < name.length()) {
+            throw new BadRequestException("invalid name");
+        }
+        var names = name.split("/");
+        var len = names.length;
+        if (len > IdLevelQuery.MAX_DIR_LEVEL) {
+            throw new BadRequestException("invalid name");
         }
 
-        var file = commonService.newUserFile(uid, pid, name);
-        if (!userFileDao.doInsert(file)) {
-            return RestBody.error(name_already_exist, "name already exists");
+        UserFileEntity dir;
+        try {
+            dir = commonService.checkFid(pid, exchange);
+        } catch (BreakException e) {
+            return e.getData();
         }
-        return RestBody.ok();
+
+        var uid = dir.getUid();
+        for (int i = 0; i < len; i++) {
+            var currentName = names[i];
+            var file = commonService.newUserFile(uid, pid, currentName);
+            //var fid = file.getId();
+            var res = cassandraTemplate.insert(file, InsertOptions.builder()
+                    .withIfNotExists()
+                    .build());
+            if (!res.wasApplied()) {
+                var oldFile = res.getEntity();
+                // already exists
+                if (i == len - 1) {
+                    return RestBody.error(name_already_exist, "name already exists", oldFile.getId());
+                }
+                pid = oldFile.getId();
+            } else {
+                if (i == len - 1) {
+                    return RestBody.ok(file.getId());
+                }
+                pid = file.getId();
+            }
+        }
+
+        return RestBody.error(mkdir_operation_failed, "operation failed");
     }
 
     @Override
     public RestBody<?> rename(long fid, String name, ServerWebExchange exchange) {
-        var uid = commonService.retrieveUid(exchange);
-        var file = userFileDao.findById(fid);
-        if (file == null) {
-            return RestBody.error(fid_not_found, "fid not found");
-        }
-        if (!file.getUid().equals(uid)) {
-            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        UserFileEntity file;
+        try {
+            file = commonService.checkFid(fid, exchange);
+        } catch (BreakException e) {
+            return e.getData();
         }
 
+        var uid = file.getUid();
         var oldName = file.getName();
         if (oldName.equals("/")) {
-            return RestBody.error(unsupported_root, "unsupported to rename root directory /");
+            return RestBody.error(unsupported_root, "unsupported operation for root");
         }
         if (oldName.equals(name)) {
             return RestBody.error(rename_to_same_name, "cannot rename to same name");
         }
 
-        var targetFile = userFileDao.findByPidAndName(uid, file.getPid(), name);
+        var targetFile = userFileDao.find(uid, file.getPid(), name);
         if (targetFile != null) {
             return RestBody.error(name_already_exist, "name already exists");
         }
 
         if (!userFileDao.doUpdateName(file, name)) {
-            return RestBody.error(rename_failed, "rename failed");
+            return RestBody.error(rename_operation_failed, "operation failed");
         }
         return RestBody.ok();
     }
 
-    // Note that no-atomic op
     @Override
     public RestBody<?> move(long fromId, long toId, ServerWebExchange exchange) {
-        var uid = commonService.retrieveUid(exchange);
-        var file = userFileDao.findById(fromId);
-        if (file == null) {
-            return RestBody.error(fid_not_found, "fid is not found");
-        }
-        if (!file.getUid().equals(uid)) {
-            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        UserFileEntity file;
+        try {
+            file = commonService.checkFid(fromId, exchange);
+        } catch (BreakException e) {
+            return e.getData();
         }
 
-        var pid = file.getPid();
+        var uid = file.getUid();
         var name = file.getName();
         if (name.equals("/")) {
-            return RestBody.error(unsupported_root, "unsupported to move root directory /");
+            return RestBody.error(unsupported_operation_root, "unsupported to move root");
         }
 
-        var dir = userFileDao.findById(toId);
-        if (dir == null) {
-            return RestBody.error(target_fid_not_found, "target fid is not found");
-        }
-        if (!dir.getUid().equals(uid)) {
-            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
-        }
-
-        if (pid.equals(dir.getId())) {
-            return RestBody.error(move_to_same_dir, "cannot move to same dir");
+        UserFileEntity dir;
+        try {
+            dir = checkTargetFid(file, toId);
+        } catch (BreakException e) {
+            return e.getData();
         }
 
-        var targetFile = userFileDao.findByPidAndName(uid, dir.getId(), name);
+        var targetFile = userFileDao.find(uid, dir.getId(), name);
         if (targetFile != null) {
-            return RestBody.error(name_already_exist, "name already exists");
+            return RestBody.error(move_name_already_exist, "name already exists");
         }
 
-        file.setPid(dir.getId());
-        if (!userFileDao.doInsert(file)) {
-            return RestBody.error(move_failed, "move failed");
+        if (!userFileDao.doMove(file, dir.getId())) {
+            return RestBody.error(move_operation_failed, "operation failed");
+        }
+        return RestBody.ok();
+    }
+
+    // Note that no-atomic op for copy a dir
+    @Override
+    public RestBody<?> copy(long fromId, long toId, ServerWebExchange exchange) {
+        UserFileEntity file;
+        try {
+            file = commonService.checkFid(fromId, exchange);
+        } catch (BreakException e) {
+            return e.getData();
         }
 
-        userFileDao.deleteByPidAndName(uid, pid, name);
+        var uid = file.getUid();
+        var name = file.getName();
+        if (name.equals("/")) {
+            return RestBody.error(unsupported_operation_root, "unsupported to copy root");
+        }
+
+        UserFileEntity dir;
+        try {
+            dir = checkTargetFid(file, toId);
+        } catch (BreakException e) {
+            return e.getData();
+        }
+
+        if (commonService.isFile(file)) {
+            var newFid = idGeneratorService.nextFid();
+            if (!userFileDao.doCopy(file, dir.getId(), newFid)) {
+                return RestBody.error(copy_operation_failed, "operation failed");
+            }
+        } else {
+            try {
+                copyUserFileSetOps.add(String.format("%d:%d:%d", uid, fromId, toId));
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                throw new InternalServerErrorException();
+            }
+        }
         return RestBody.ok();
     }
 
     // Note that no-atomic op for remove a dir
     @Override
     public RestBody<?> remove(long fid, ServerWebExchange exchange) {
-        var uid = commonService.retrieveUid(exchange);
-        var file = userFileDao.findById(fid);
-        if (file == null) {
-            return RestBody.error(fid_not_found, "fid is not found");
-        }
-        if (!file.getUid().equals(uid)) {
-            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        UserFileEntity file;
+        try {
+            file = commonService.checkFid(fid, exchange);
+        } catch (BreakException e) {
+            return e.getData();
         }
 
-        if (!userFileDao.doDeleteByPidAndName(uid, file.getPid(), file.getName())) {
+        var uid = file.getUid();
+        if (!userFileDao.doDelete(uid, file.getPid(), file.getName())) {
             return RestBody.error(fid_not_found, "fid not found");
         }
 
         if (commonService.isDirectory(file)) {
             try {
-                setOps.add(uid + ":" + fid);
+                removeUserFileSetOps.add(uid + ":" + fid);
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
                 userFileDao.insert(file);
-                return RestBody.error(remove_failed, "remove failed");
+                throw new InternalServerErrorException();
             }
         }
 
         return RestBody.ok();
+    }
+
+    private UserFileEntity checkTargetFid(UserFileEntity file, long targetFid) throws BreakException {
+        var uid = file.getUid();
+        var pid = file.getPid();
+
+        var dir = userFileDao.findById(targetFid);
+        if (dir == null) {
+            throw new BreakException(RestBody.error(target_fid_not_found, "target fid not found"));
+        }
+        if (!dir.getUid().equals(uid)) {
+            throw new ForbiddenException(insufficient_permissions_for_target_file, "insufficient permissions for target file");
+        }
+
+        if (pid.equals(dir.getId())) {
+            throw new BreakException(RestBody.error(unsupported_same_dir, "unsupported operation for same dir"));
+        }
+
+        return dir;
     }
 
 }

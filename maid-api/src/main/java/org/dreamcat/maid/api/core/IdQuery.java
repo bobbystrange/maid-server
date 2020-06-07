@@ -3,7 +3,6 @@ package org.dreamcat.maid.api.core;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 /**
@@ -15,6 +14,5 @@ import javax.validation.constraints.NotNull;
 @Setter
 public class IdQuery {
     @NotNull
-    @Min(1 << 22)
     private Long id;
 }

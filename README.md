@@ -3,83 +3,30 @@
 
 ---
 ## 🤣🤔 A restful-style implement for file system based on cassandra key columns
-- user_file, mapping a root directory
-> uid, root user id
->
-> path, file path like /path/to/a/directory/or/file
->
-> items, only dir, a set which contains short name of sub files, like {'etc', 'usr', ...} for /
-
-- file, mapping physical files
-> digest, md5 digest for normal not-empty file
->
-> type, media type
->
-> size, file size, unit is byte
->
-## 🐱👮 Restrictions of File System
-> 
-> sub item count:   65536
->
-> file chain level: 128
-
-## 🍔👩‍🎤 Restful API via http1.1
-
 - #### 🖤️🖕 Done
 
 ```sh
 ### auth via JWT
-register
-login
-passwd
+register, register-confirm, login, passwd, passwd-confirm
 
 ### user
-useradd
-usermod
-userdel
-whoami
+useradd, usermod, userdel, whoami
 
 ### file
->
-mkdir
-ls
-tree
-rename
-mv
-cp -r
-rm -rf
-# batch of mv, cp and rm
-download
-upload
+file, ls, tree, flat-tree
+mkdir, rename, mv, cp, rm
+download, upload, share
+share-file, share-ls, share-download
 ```
-
-- #### 🤪🐫️ Plan
-
-```sh
-# user
-id -g && id -u
-users
-groups
-groupadd
-groupmod
-groupdel
-chown
-chmod
-
-# file
->>
-open
-cat
-zip
-unzip
-# trash
-# favor
-# history
-```
-
 ## 😡🤡 API invocation process
 - /auth/code/image fetch image code for register
 - /auth/register register and check the email
 - /auth/register/confirm use redirct url including in the email to confirm your register
 - /auth/login login with username & password, obtain token
+
+## Notes
+1. **root dir id is 0**
+2. list-like API limit is 1024 typically
+3. tree-like API limit is 65536 typically
+4. path level-like API limit is 128 typically
 

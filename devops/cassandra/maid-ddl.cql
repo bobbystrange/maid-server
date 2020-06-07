@@ -7,7 +7,7 @@ use maid;
 -- table
 -- desc user
 create table if not exists user (
-    id         text primary key,
+    id         bigint primary key,
     ctime      bigint,
     mtime      bigint,
     name       text,
@@ -19,7 +19,7 @@ create table if not exists user (
 create index if not exists idx_user_name on user (name);
 
 create table if not exists avatar (
-    uid    uuid,
+    uid    bigint,
     ctime  bigint,
     avatar text,
     primary key (uid, ctime),
@@ -32,23 +32,24 @@ create table if not exists file (
 );
 
 create table if not exists user_file (
-    pid    text,
+    uid    bigint,
+    pid    bigint,
     name   text,
-    id     text,
+    id     bigint,
 
     ctime  bigint,
     mtime  bigint,
     digest text,
     type   text,
     size   bigint,
-    primary key ( pid, name )
+    primary key ( uid, pid, name )
 );
 create index if not exists idx_user_file_id on user_file (id);
 
 create table if not exists share_file (
-    id       text primary key,
-    uid      text,
-    fid      text,
+    id       bigint primary key,
+    uid      bigint,
+    fid      bigint,
 
     ctime    bigint,
     password text,

@@ -7,6 +7,7 @@ import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.maid.api.config.AppProperties;
 import org.dreamcat.maid.api.controller.file.FileItemView;
 import org.dreamcat.maid.api.controller.file.FileView;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
@@ -32,6 +33,7 @@ import static org.dreamcat.maid.cassandra.core.RestCodes.excessive_subitems;
 public class FileChainService {
     private final UserFileDao userFileDao;
     private final CommonService commonService;
+    private final AppProperties properties;
 
     // /path/to/file_or_dir
     public String retrievePath(UserFileEntity file) {
@@ -55,14 +57,14 @@ public class FileChainService {
         var pid = dir.getId();
         long count = userFileDao.countByPid(uid, pid);
         if (count == 0) return;
-        if (count > 1024) {
+        if (count > properties.getFetchSize()) {
             throw new BreakException(RestBody.error(excessive_subitems, "excessive subitems"));
         }
         if (batchSize.addAndGet((int) -count) <= 0) {
             throw new BreakException(RestBody.error(excessive_items, "excessive items"));
         }
 
-        var files = userFileDao.findAllByPid(uid, pid);
+        var files = userFileDao.findByPid(uid, pid);
         tree.setItems(new ArrayList<>());
         for (var file : files) {
             var view = BeanCopierUtil.copy(file, FileView.class);

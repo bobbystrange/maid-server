@@ -6,35 +6,34 @@ package org.dreamcat.maid.cassandra.core;
 public abstract class RestCodes {
     /// 403
     public static final int insufficient_permissions = 1;
+    public static final int insufficient_permissions_for_target_file = 2;
 
     /// list
     public static final int fid_not_found = 1;
+    public static final int fid_not_diretory = 2;
+    public static final int excessive_subitems = 3;
+    public static final int excessive_items = 4;
+
     public static final int fid_not_file = 2;
-    public static final int fid_not_diretory = 3;
-    public static final int excessive_subitems = 4;
-    public static final int excessive_items = 5;
 
     /// ops
-    public static final int parent_fid_not_found = 1;
     public static final int name_already_exist = 2;
+    public static final int mkdir_operation_failed = 3;
     public static final int unsupported_root = 3;
+
     public static final int rename_to_same_name = 4;
-    public static final int rename_failed = 5;
+    public static final int rename_operation_failed = 5;
 
-    public static final int target_fid_not_found = 4;
-    public static final int move_to_same_dir = 5;
-    public static final int move_failed = 6;
+    public static final int unsupported_operation_root = 2;
+    public static final int target_fid_not_found = 3;
+    public static final int unsupported_same_dir = 4;
+    public static final int move_name_already_exist = 5;
+    public static final int move_operation_failed = 6;
+    public static final int copy_operation_failed = 5;
 
-    public static final int remove_failed = 2;
 
     /// load
-    public static final int sign_or_io_failed = 1;
-    public static final int upload_no_available_instances = 2;
-    public static final int upload_save_hub_failed = 3;
-
-    public static final int download_no_available_instances = 1;
-
-    public static final int upload_falied = 4;
+    public static final int upload_falied = 3;
 
     /// share
     public static final int sid_not_found = 1;
@@ -44,8 +43,8 @@ public abstract class RestCodes {
     public static final int sid_already_invalid = 5;
     public static final int shared_path_not_found = 6;
     public static final int shared_path_not_file = 7;
-    public static final int shared_path_not_diretory = 8;
-    public static final int sid_excessive_subitems = 9;
+    public static final int shared_path_not_diretory = 7;
+    public static final int sid_excessive_subitems = 8;
 
     /// user
     public static final int user_not_found = 1;

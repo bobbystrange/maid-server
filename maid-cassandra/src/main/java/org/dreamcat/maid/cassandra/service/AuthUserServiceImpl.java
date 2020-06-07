@@ -50,8 +50,8 @@ public class AuthUserServiceImpl implements AuthUserService<UserEntity> {
         user.setMtime(timestamp);
         user.setName(username);
 
-        // Note that fid equal uid when root directory
-        var root = commonService.newUserFile(uid, uid, "/");
+        // Note that fid equal 0 and pid equal -1 when root directory
+        var root = commonService.newUserFile(uid, -1, "/", 0);
         cassandraTemplate.batchOps()
                 .insert(user)
                 .insert(root)

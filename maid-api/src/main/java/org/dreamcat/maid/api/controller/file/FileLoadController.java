@@ -37,12 +37,9 @@ public class FileLoadController {
      * @apiParam {File} file in `multipart/form-data`
      * @apiSuccess (Success 200 code = 0) {Number} code
      * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 3) code file is not a diretory
-     * @apiError (Error 200 code = 4) code upload failed, the diretory maybe deleted during uploading
+     * @apiError (Error 200 code = 2) code file is not a diretory
+     * @apiError (Error 200 code = 3) code upload failed, the diretory maybe deleted during uploading
      * @apiError (Error 403 code = 1) code insufficient permissions
-     * @apiError (Error 500 code = 1) code maybe internal I/O error or cannot sign uploaded file
-     * @apiError (Error 500 code = 2) code no available instances for upload
-     * @apiError (Error 500 code = 3) code failed to upload file to instances
      */
     @RequestMapping(path = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public Mono<RestBody<?>> uploadFile(
@@ -61,6 +58,7 @@ public class FileLoadController {
     }
 
     /**
+     * <pre>
      * @api {post} /file/download Download file
      * @apiDescription Download a file by file id
      * @apiName DownloadFile
@@ -71,13 +69,13 @@ public class FileLoadController {
      * @apiSuccess (Success 200) {string} data download url
      * @apiError (Error 200 code = 1) code file is not found
      * @apiError (Error 200 code = 2) code file is not a file
-     * @apiError (Error 500 code = 1) code no available instances for download
      * @apiSuccessExample {json} Success-Response:
      * {
-     * "code": 0,
-     * "data": "http://..."
+     *      "code": 0,
+     *      "data": "http://..."
      * }
      * @apiError (Error 403 code = 1) code insufficient permissions
+     * </pre>
      */
     @RequestMapping(path = "/download")
     public Mono<RestBody<String>> downloadFile(
@@ -97,6 +95,7 @@ public class FileLoadController {
      * @apiParam {number} [ttl] shared file time-to-live
      * @apiSuccess (Success 200) {Number} code 0
      * @apiSuccess (Success 200) {String} data share code
+     * @apiError (Error 200 code = 1) code file is not found
      * @apiError (Error 404) {Number} code -1, path or file-instance is not found
      */
     @RequestMapping(path = "/share")
@@ -105,6 +104,5 @@ public class FileLoadController {
             ServerWebExchange exchange) {
         return Mono.fromCallable(() -> service.share(query, exchange));
     }
-
 
 }

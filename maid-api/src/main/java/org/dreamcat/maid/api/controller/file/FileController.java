@@ -26,7 +26,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping(path = AppConfig.API_PREFIX + "/file",
-        method = RequestMethod.GET,
+        method = RequestMethod.POST,
         consumes = {MediaType.APPLICATION_JSON_VALUE})
 public class FileController {
     private final FileService service;
@@ -79,7 +79,7 @@ public class FileController {
      * @apiErrorExample {json} Error-Response:
      * {
      *     "code": 1,
-     *     "msg": "file is not found"
+     *     "message": "file is not found"
      * }
      * @apiError (Error 403 code = 1) code insufficient permissions
      * </pre>
@@ -106,8 +106,8 @@ public class FileController {
      * @apiSuccess (Success 200 code = 0) {string} [type] file type, in mime type
      * @apiSuccess (Success 200 code = 0) {number} [size] file size, in bytes
      * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 3) code file is not a diretory
-     * @apiError (Error 200 code = 4) code sub items number over 1024
+     * @apiError (Error 200 code = 2) code file is not a diretory
+     * @apiError (Error 200 code = 3) code file has excessive subitems
      * @apiSuccessExample {json} Success-Response:
      * {
      *     "code": 0,
@@ -157,9 +157,9 @@ public class FileController {
      * @apiSuccess (Success 200 code = 0) {number} [size] file size, in bytes
      * @apiSuccess (Success 200 code = 0) {array} [items] sub items
      * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 3) code file is not a diretory
-     * @apiError (Error 200 code = 4) code sub items number over 1024
-     * @apiError (Error 200 code = 5) code batch size over 65536
+     * @apiError (Error 200 code = 2) code file is not a diretory
+     * @apiError (Error 200 code = 3) code file has excessive subitems
+     * @apiError (Error 200 code = 4) code dir tree has excessive items
      * @apiParamExample {json} Request-Example:
      * {
      *     "id": 2,
@@ -202,7 +202,7 @@ public class FileController {
     /**
      * <pre>
      * @api {get} /file/flat/tree Tree flat directory
-     * @apiDescription List a specified flat directory tree, error code is same as `ls`
+     * @apiDescription List a specified flat directory tree, `error code` is same as `tree`
      * @apiName FlatTreeFile
      * @apiGroup File
      * @apiParam {number} id file id

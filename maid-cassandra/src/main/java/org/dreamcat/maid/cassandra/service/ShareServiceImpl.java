@@ -68,7 +68,7 @@ public class ShareServiceImpl implements ShareService {
         if (count > 1024) {
             return RestBody.error(sid_excessive_subitems, "sid excessive subitems");
         }
-        var files = userFileDao.findAllByPid(uid, pid);
+        var files = userFileDao.findByPid(uid, pid);
         var views = files.stream()
                 .map(commonService::toFileItemView)
                 .collect(Collectors.toList());
@@ -91,7 +91,7 @@ public class ShareServiceImpl implements ShareService {
         var domain = instanceService.findMostIdleDomainAddress(digest);
         if (domain == null) {
             log.error("No available instances for download {}", digest);
-            throw new InternalServerErrorException(download_no_available_instances, "no available instances");
+            throw new InternalServerErrorException("no available instances");
         }
         var name = file.getName();
         var type = file.getType();
@@ -167,7 +167,7 @@ public class ShareServiceImpl implements ShareService {
             if (commonService.isFile(file)) {
                 throw new BreakException(RestBody.error(shared_path_not_diretory, "shared fid not diretory"));
             }
-            file = userFileDao.findByPidAndName(uid, file.getId(), name);
+            file = userFileDao.find(uid, file.getId(), name);
             if (file == null) {
                 throw new BreakException(RestBody.error(shared_path_not_found, "shared fid not found"));
             }

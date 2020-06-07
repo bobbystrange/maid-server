@@ -2,7 +2,10 @@ package org.dreamcat.maid.cassandra.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dreamcat.common.exception.BreakException;
 import org.dreamcat.common.web.asm.BeanCopierUtil;
+import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.common.web.exception.ForbiddenException;
 import org.dreamcat.common.web.exception.UnauthorizedException;
 import org.dreamcat.common.webflux.security.jwt.JwtReactiveFactory;
 import org.dreamcat.maid.api.controller.file.FileInfoView;
@@ -12,6 +15,9 @@ import org.dreamcat.maid.cassandra.dao.UserFileDao;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ServerWebExchange;
+
+import static org.dreamcat.maid.cassandra.core.RestCodes.fid_not_found;
+import static org.dreamcat.maid.cassandra.core.RestCodes.insufficient_permissions;
 
 /**
  * Create by tuke on 2020/3/20
@@ -34,8 +40,11 @@ public class CommonService {
 
     public UserFileEntity newUserFile(long uid, long pid, String name) {
         var fid = idGeneratorService.nextFid();
-        var timestmap = System.currentTimeMillis();
+        return newUserFile(uid, pid, name, fid);
+    }
 
+    public UserFileEntity newUserFile(long uid, long pid, String name, long fid) {
+        var timestmap = System.currentTimeMillis();
         var file = new UserFileEntity();
         file.setId(fid);
         file.setUid(uid);
@@ -69,6 +78,20 @@ public class CommonService {
             view.setCount(count);
         }
         return view;
+    }
+
+    public UserFileEntity checkFid(long fid, ServerWebExchange exchange) throws BreakException {
+        var uid = retrieveUid(exchange);
+        var file = userFileDao.findById(fid);
+        if (file == null) {
+            throw new BreakException(RestBody.error(fid_not_found, "fid not found"));
+        }
+
+        if (!file.getUid().equals(uid)) {
+            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        }
+
+        return file;
     }
 
 }

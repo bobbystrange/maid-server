@@ -17,9 +17,11 @@ public class RedisConfig {
     private final AppProperties properties;
 
     private String removeUserFileSet;
+    private String copyUserFileSet;
 
     @PostConstruct
     public void init() {
-        removeUserFileSet = String.format("%s:remove:user_file:list", properties.getKeyPrefix());
+        removeUserFileSet = String.format("%s:remove:user_file:set", properties.getKeyPrefix());
+        copyUserFileSet = String.format("%s:copy:user_file:set", properties.getKeyPrefix());
     }
 }

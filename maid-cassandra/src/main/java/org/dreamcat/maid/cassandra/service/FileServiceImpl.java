@@ -71,10 +71,10 @@ public class FileServiceImpl implements FileService {
         }
 
         long count = userFileDao.countByPid(uid, pid);
-        if (count > 1024) {
+        if (count > properties.getFetchSize()) {
             return RestBody.error(excessive_subitems, "excessive subitems");
         }
-        var files = userFileDao.findAllByPid(uid, pid);
+        var files = userFileDao.findByPid(uid, pid);
         var views = files.stream()
                 .map(commonService::toFileItemView)
                 .collect(Collectors.toList());

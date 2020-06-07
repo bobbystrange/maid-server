@@ -14,13 +14,16 @@ import org.springframework.data.cassandra.core.mapping.Table;
 @Setter
 @Table("user_file")
 public class UserFileEntity {
+    // user id
     @PrimaryKeyColumn(type = PrimaryKeyType.PARTITIONED)
     private Long uid;
+    // parent file id
     @PrimaryKeyColumn
     private Long pid;
+    // filename
     @PrimaryKeyColumn
     private String name;
-
+    // file id
     @Indexed
     private Long id;
 
@@ -29,6 +32,5 @@ public class UserFileEntity {
     private String digest;
     private String type;
     private Long size;
-
 
 }
