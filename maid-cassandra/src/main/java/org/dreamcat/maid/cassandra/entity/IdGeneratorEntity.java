@@ -2,6 +2,7 @@ package org.dreamcat.maid.cassandra.entity;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
 
@@ -14,4 +15,6 @@ import org.springframework.data.cassandra.core.mapping.Table;
 public class IdGeneratorEntity {
     @PrimaryKey
     private Long id;
+    @Column("app_id")
+    private String appId;
 }

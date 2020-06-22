@@ -14,6 +14,6 @@ public interface FileLoadService {
 
     RestBody<String> download(long fid, boolean attachment, ServerWebExchange exchange);
 
-    RestBody<Long> share(ShareFileQuery query, ServerWebExchange exchange);
+    RestBody<String> share(ShareFileQuery query, ServerWebExchange exchange);
 
 }

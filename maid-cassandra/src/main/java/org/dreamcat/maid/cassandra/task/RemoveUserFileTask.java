@@ -6,6 +6,7 @@ import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.maid.api.config.AppProperties;
 import org.dreamcat.maid.cassandra.config.RedisConfig;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
+import org.dreamcat.maid.cassandra.service.CacheService;
 import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.data.redis.core.BoundSetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -14,10 +15,11 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
-import static com.datastax.driver.core.querybuilder.QueryBuilder.select;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.literal;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
 
 /**
  * Create by tuke on 2020/5/31
@@ -31,6 +33,7 @@ public class RemoveUserFileTask {
     private final AppProperties properties;
     private final StringRedisTemplate redisTemplate;
     private final RedisConfig redisConfig;
+    private final CacheService cacheService;
 
     private BoundSetOperations<String, String> setOps;
 
@@ -54,16 +57,27 @@ public class RemoveUserFileTask {
         var pid = Long.parseLong(s[1]);
 
         var fetchSize = properties.getFetchSize();
-        var stmt = select("id,name,type")
-                .from("user_file")
-                .where(eq("uid", uid)).and(eq("pid", pid));
-        stmt.setFetchSize(fetchSize);
+        var stmt = selectFrom("user_file")
+                .columns("id", "name", "type")
+                .whereColumn("uid").isEqualTo(literal(uid))
+                .whereColumn("pid").isEqualTo(literal(pid))
+                .build()
+                .setPageSize(fetchSize);
+
         var rs = cassandraTemplate.getCqlOperations().queryForResultSet(stmt);
         var iter = rs.iterator();
 
         List<String> names = new ArrayList<>(fetchSize);
+        int offset = 0;
+        Object[] ids = new Long[fetchSize];
         while (!rs.isFullyFetched()) {
-            rs.fetchMoreResults();
+            if (names.size() >= fetchSize) {
+                userFileDao.deleteAllByNames(uid, pid, names);
+                cacheService.deleteFidToPidAndName(uid, ids);
+                names.clear();
+                offset = 0;
+            }
+
             var row = iter.next();
             var id = row.getLong(0);
             var name = row.getString(1);
@@ -74,14 +88,14 @@ public class RemoveUserFileTask {
             }
 
             names.add(name);
-            if (names.size() >= fetchSize) {
-                userFileDao.deleteAllByNames(uid, pid, names);
-                names = new ArrayList<>(fetchSize);
-            }
+            ids[offset++] = id;
         }
 
         if (ObjectUtil.isNotEmpty(names)) {
             userFileDao.deleteAllByNames(uid, pid, names);
+        }
+        if (offset > 0) {
+            cacheService.deleteFidToPidAndName(uid, Arrays.copyOf(ids, offset));
         }
     }
 }

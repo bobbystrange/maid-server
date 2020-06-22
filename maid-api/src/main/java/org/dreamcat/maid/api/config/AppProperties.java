@@ -15,6 +15,7 @@ public class AppProperties {
     private int fetchSize = 1024;
     // tree size
     private int batchSize = 65536;
+    // 0-1023
     private long datacenterId = 0;
     private String keyPrefix = "maid";
 

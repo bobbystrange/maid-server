@@ -24,7 +24,6 @@ import org.dreamcat.maid.cassandra.hub.RestService;
 import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.data.cassandra.core.InsertOptions;
 import org.springframework.http.codec.multipart.FilePart;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -50,7 +49,6 @@ public class FileLoadServiceImpl implements FileLoadService {
     private final InstanceService instanceService;
     private final RestService restService;
     private final OkHttpWget wget;
-    private final PasswordEncoder passwordEncoder;
     private final IdGeneratorService idGeneratorService;
 
     @Override
@@ -140,29 +138,39 @@ public class FileLoadServiceImpl implements FileLoadService {
     }
 
     @Override
-    public RestBody<Long> share(ShareFileQuery query, ServerWebExchange exchange) {
+    public RestBody<String> share(ShareFileQuery query, ServerWebExchange exchange) {
         var fid = query.getId();
+        // don't encrypt it
         var password = query.getPassword();
         var ttl = query.getTtl();
 
+        UserFileEntity file;
         try {
-            commonService.checkFid(fid, exchange);
+            file = commonService.checkFid(fid, exchange);
         } catch (BreakException e) {
             return e.getData();
         }
+        var uid = file.getUid();
 
-        password = passwordEncoder.encode(password);
-        var timestamp = System.currentTimeMillis();
-        var sid = idGeneratorService.nextSid();
+        long timestamp = System.currentTimeMillis();
+        long sid = idGeneratorService.nextSid();
 
         var shareFile = new ShareFileEntity();
         shareFile.setId(sid);
+        shareFile.setUid(uid);
         shareFile.setFid(fid);
         shareFile.setCtime(timestamp);
         shareFile.setPassword(password);
         shareFile.setTtl(ttl);
+        // save from user_file
+        shareFile.setPid(file.getPid());
+        shareFile.setName(file.getName());
+        shareFile.setDigest(file.getDigest());
+        shareFile.setType(file.getType());
+        shareFile.setSize(file.getSize());
+
         cassandraTemplate.insert(shareFile);
-        return RestBody.ok(sid);
+        return RestBody.ok(String.valueOf(sid));
     }
 
     private boolean createFile(UserFileEntity directory, String name, FileEntity fileEntity) {
@@ -193,14 +201,20 @@ public class FileLoadServiceImpl implements FileLoadService {
             formData.put("file", realFile);
             try {
                 log.info("Uploading file {} to {} via post {}", digest, domain, url);
-                var res = wget.postFormData(url, formData);
-                if (res.isSuccessful()) {
-                    var applied = saveUserFile(directory, name, fileEntity);
-                    if (applied) error = false;
-                    return applied;
-                } else {
-                    log.error("{} {} on upload file {} to {}", res.code(), res.message(), digest, domain);
-                    throw new InternalServerErrorException("upload save hub failed");
+
+                try (var res = wget.postFormData(url, formData)) {
+                    if (res.isSuccessful()) {
+                        var applied = saveUserFile(directory, name, fileEntity);
+                        if (applied) error = false;
+                        return applied;
+                    } else {
+                        log.error("{} {} on upload file {} to {}", res.code(), res.message(), digest, domain);
+                        var body = res.body();
+                        if (body != null) {
+                            log.error(body.string());
+                        }
+                        throw new InternalServerErrorException("upload save hub failed");
+                    }
                 }
             } catch (IOException e) {
                 log.error("Error on upload file {} to {}, caused by `{}`", digest, domain, e.getMessage());

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.maid.api.config.AppConfig;
 import org.dreamcat.maid.api.core.IdLevelQuery;
+import org.dreamcat.maid.api.core.IdPageQuery;
 import org.dreamcat.maid.api.core.IdQuery;
 import org.dreamcat.maid.api.service.FileService;
 import org.springframework.http.MediaType;
@@ -30,6 +31,39 @@ import java.util.Map;
         consumes = {MediaType.APPLICATION_JSON_VALUE})
 public class FileController {
     private final FileService service;
+
+    /**
+     * <pre>
+     * @api {get} /file/path Get path by file id
+     * @apiDescription Get path by file id
+     * @apiName PathFile
+     * @apiGroup File
+     * @apiParam {number} id file id
+     * @apiSuccess (Success 200 code = 0) {string} data file path, look like /a/b/c/d
+     * @apiError (Error 200 code = 1) code file is not found
+     * @apiParamExample {json} Request-Example:
+     * {
+     *     "id": 0
+     * }
+     * @apiSuccessExample {json} Success-Response:
+     * {
+     *     "code": 0,
+     *     "data": "/a/b/c/d"
+     * }
+     * @apiErrorExample {json} Error-Response:
+     * {
+     *     "code": 1,
+     *     "message": "fid not found"
+     * }
+     * @apiError (Error 403 code = 1) code insufficient permissions
+     * </pre>
+     */
+    @RequestMapping(path = {"/path"})
+    public Mono<RestBody<String>> path(
+            @Valid @RequestBody Mono<IdQuery> query,
+            ServerWebExchange exchange) {
+        return query.map(it -> service.path(it.getId(), exchange));
+    }
 
     /**
      * <pre>
@@ -79,7 +113,7 @@ public class FileController {
      * @apiErrorExample {json} Error-Response:
      * {
      *     "code": 1,
-     *     "message": "file is not found"
+     *     "message": "file not found"
      * }
      * @apiError (Error 403 code = 1) code insufficient permissions
      * </pre>
@@ -138,6 +172,85 @@ public class FileController {
             @Valid @RequestBody Mono<IdQuery> query,
             ServerWebExchange exchange) {
         return query.map(it -> service.list(it.getId(), exchange));
+    }
+
+    /**
+     * <pre>
+     * @api {get} /file/(list|ls)/page List page directory
+     * @apiDescription List page a specified directory, error code like `path`
+     * @apiName ListPageFile
+     * @apiGroup File
+     * @apiParam {number} id file id
+     * @apiParam {string} last last file name, null means first page
+     * @apiParam {number} size page size, max value is 1024
+     * @apiError (Error 200 code = 1) code file is not found
+     * @apiError (Error 200 code = 2) code file is not a diretory
+     * @apiSuccessExample {json} Success-Response:
+     * {
+     *     "code": 0,
+     *     "data": [
+     *         {
+     *             "id": 2,
+     *             "pid": 1,
+     *             "name": "filename",
+     *             "ctime": 1588166983066,
+     *             "mtime": 1588166983066,
+     *             "type": "text/plain",
+     *             "size": 1024,
+     *         },
+     *         {
+     *             "id": 3,
+     *             "pid": 1,
+     *             "name": "folder_name",
+     *             "ctime": 1588166983066,
+     *             "mtime": 1588166983066,
+     *         },
+     *     ]
+     * }
+     * @apiError (Error 403 code = 1) code insufficient permissions
+     * </pre>
+     */
+    @RequestMapping(path = {"/list/page", "/ls/page"})
+    public Mono<RestBody<List<FileItemView>>> listPage(
+            @Valid @RequestBody Mono<IdPageQuery> query,
+            ServerWebExchange exchange) {
+        return query.map(it -> service.listPage(it.getId(), it.getLast(), it.getSize(), exchange));
+    }
+
+    /**
+     * <pre>
+     * @api {get} /file/(list|ls)/path List path directory
+     * @apiDescription List path a specified directory, error code like `path`
+     * @apiName ListPageFile
+     * @apiGroup File
+     * @apiParam {number} id file id
+     * @apiError (Error 200 code = 1) code file is not found
+     * @apiSuccessExample {json} Success-Response:
+     * {
+     *     "code": 0,
+     *     "data": [
+     *         {
+     *             "id": 0,
+     *             "name": "/",
+     *         },
+     *         {
+     *             "id": 3,
+     *             "name": "folder_name",
+     *         },
+     *         {
+     *             "id": 5,
+     *             "name": "filename",
+     *         }
+     *     ]
+     * }
+     * @apiError (Error 403 code = 1) code insufficient permissions
+     * </pre>
+     */
+    @RequestMapping(path = {"/list/path", "/ls/path"})
+    public Mono<RestBody<List<IdNameView>>> listPath(
+            @Valid @RequestBody Mono<IdQuery> query,
+            ServerWebExchange exchange) {
+        return query.map(it -> service.listPath(it.getId(), exchange));
     }
 
     /**

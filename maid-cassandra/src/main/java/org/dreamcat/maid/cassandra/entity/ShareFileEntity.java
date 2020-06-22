@@ -23,4 +23,11 @@ public class ShareFileEntity {
     private Long ctime;
     private String password;
     private Long ttl;
+
+    // save from user_file
+    private Long pid;
+    private String name;
+    private String digest;
+    private String type;
+    private Long size;
 }

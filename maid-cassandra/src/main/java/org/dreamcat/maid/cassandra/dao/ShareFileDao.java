@@ -9,6 +9,7 @@ import org.springframework.data.cassandra.core.query.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Create by tuke on 2020/5/24
@@ -32,5 +33,21 @@ public class ShareFileDao {
     public void deleteByIds(Collection<Long> ids) {
         Query query = Query.query(Criteria.where("id").in(ids));
         cassandraTemplate.delete(query, ShareFileEntity.class);
+    }
+
+    ///
+
+    public List<ShareFileEntity> findLimit(long uid, int size) {
+        var query = Query.query(Criteria.where("uid").is(uid)).limit(size);
+        return cassandraTemplate.select(query, ShareFileEntity.class);
+    }
+
+    // Note that it may have unpredictable performance.
+    public List<ShareFileEntity> findLimit(long uid, int size, Long last) {
+        if (last == null) return findLimit(uid, size);
+        var cql = String.format("select * from share_file " +
+                        "where uid = %d and token(id) > token(%d) limit %d",
+                uid, last, size);
+        return cassandraTemplate.select(cql, ShareFileEntity.class);
     }
 }

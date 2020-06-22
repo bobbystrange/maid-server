@@ -54,7 +54,6 @@ public class UserServiceImpl implements UserService {
         }
 
         var view = BeanCopierUtil.copy(user, UserView.class);
-        view.setUsername(user.getName());
         return RestBody.ok(view);
     }
 

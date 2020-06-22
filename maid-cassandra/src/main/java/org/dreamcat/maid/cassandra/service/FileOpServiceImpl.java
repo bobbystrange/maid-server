@@ -36,6 +36,7 @@ public class FileOpServiceImpl implements FileOpService {
     private final StringRedisTemplate redisTemplate;
     private final RedisConfig redisConfig;
     private final IdGeneratorService idGeneratorService;
+    private final CacheService cacheService;
 
     private BoundSetOperations<String, String> copyUserFileSetOps;
     private BoundSetOperations<String, String> removeUserFileSetOps;
@@ -120,6 +121,8 @@ public class FileOpServiceImpl implements FileOpService {
         if (!userFileDao.doUpdateName(file, name)) {
             return RestBody.error(rename_operation_failed, "operation failed");
         }
+        // update cache
+        cacheService.saveFidToPidAndName(uid, fid, file.getPid(), name);
         return RestBody.ok();
     }
 
@@ -138,21 +141,22 @@ public class FileOpServiceImpl implements FileOpService {
             return RestBody.error(unsupported_operation_root, "unsupported to move root");
         }
 
-        UserFileEntity dir;
         try {
-            dir = checkTargetFid(file, toId);
+            checkTargetFid(file, toId);
         } catch (BreakException e) {
             return e.getData();
         }
 
-        var targetFile = userFileDao.find(uid, dir.getId(), name);
+        var targetFile = userFileDao.find(uid, toId, name);
         if (targetFile != null) {
             return RestBody.error(move_name_already_exist, "name already exists");
         }
 
-        if (!userFileDao.doMove(file, dir.getId())) {
+        if (!userFileDao.doMove(file, toId)) {
             return RestBody.error(move_operation_failed, "operation failed");
         }
+
+        cacheService.saveFidToPidAndName(uid, fromId, toId, name);
         return RestBody.ok();
     }
 
@@ -220,6 +224,7 @@ public class FileOpServiceImpl implements FileOpService {
             }
         }
 
+        cacheService.deleteFidToPidAndName(uid, fid);
         return RestBody.ok();
     }
 

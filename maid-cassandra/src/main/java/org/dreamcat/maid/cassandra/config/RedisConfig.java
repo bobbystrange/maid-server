@@ -18,10 +18,13 @@ public class RedisConfig {
 
     private String removeUserFileSet;
     private String copyUserFileSet;
+    private String mapFidToPidAndNameHashPrefix;
 
     @PostConstruct
     public void init() {
         removeUserFileSet = String.format("%s:remove:user_file:set", properties.getKeyPrefix());
         copyUserFileSet = String.format("%s:copy:user_file:set", properties.getKeyPrefix());
+        mapFidToPidAndNameHashPrefix = String.format("%s:cache:fid2pid_name:hash", properties.getKeyPrefix());
+
     }
 }

@@ -1,6 +1,7 @@
 plugins {
-    id 'org.springframework.boot' version '2.2.5.RELEASE'
+    id 'org.springframework.boot' version '2.3.0.RELEASE'
     id 'io.spring.dependency-management' version '1.0.9.RELEASE'
+    id "org.asciidoctor.convert" version "1.5.9.2"
 }
 
 ext {
@@ -16,6 +17,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-cassandra-reactive'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
@@ -26,15 +28,21 @@ dependencies {
     }
     testImplementation 'io.projectreactor:reactor-test'
 
-    implementation "org.springframework.data:spring-data-commons:2.2.4.RELEASE"
     implementation "org.dreamcat:common-hc:0.0.1"
     implementation "com.squareup.okhttp3:okhttp:${okhttpVersion}"
     implementation "com.squareup.okhttp3:logging-interceptor:${okhttpVersion}"
 
+    implementation "cglib:cglib:3.3.0"
+    implementation "org.javassist:javassist:3.27.0-GA"
+
     // file edit
     //implementation 'net.coobird:thumbnailator:0.4.11'
 
-    implementation "cglib:cglib:3.3.0"
-    implementation "org.javassist:javassist:3.27.0-GA"
+    // implementation 'io.springfox:springfox-swagger2:2.9.2'
+    // // knife4j
+    // implementation 'com.github.xiaoymin:swagger-bootstrap-ui:1.9.6'
+
+    asciidoctor 'org.springframework.restdocs:spring-restdocs-asciidoctor'
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc:{project-version}'
 
 }

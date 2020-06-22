@@ -20,6 +20,7 @@ subprojects {
         testCompileOnly "org.projectlombok:lombok:$lombokVersion"
         testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
 
+        implementation 'org.dreamcat:common-core:0.0.1'
         implementation 'org.dreamcat:common-web:0.0.1'
         implementation('org.dreamcat:common-webflux:0.0.1') {
             // disable JPA

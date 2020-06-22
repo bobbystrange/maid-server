@@ -1,6 +1,6 @@
 package org.dreamcat.maid.cassandra;
 
-import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.datastax.oss.driver.api.core.CqlIdentifier;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.crypto.MD5Util;
 import org.dreamcat.common.hc.okhttp.OkHttpWget;
@@ -12,7 +12,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashMap;
-import java.util.UUID;
+
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.*;
 
 /**
  * Create by tuke on 2020/4/13
@@ -35,20 +36,24 @@ public class HubTest {
 
     @Test
     public void testQueryBuilder() {
-        // SELECT path,uid,ctime,mtime,digest,type,size,count(items) FROM user_file WHERE path=? AND uid=?;
-        var cql = QueryBuilder.select()
-                .column("path")
-                .column("uid")
-                .column("ctime")
-                .column("mtime")
-                .column("digest")
-                .column("type")
-                .column("size")
-                .count("items")
-                .from("user_file")
-                .where(QueryBuilder.eq("path", "/path/to/folder"))
-                .and(QueryBuilder.eq("uid", UUID.randomUUID()))
-                .getQueryString();
+        var statement = selectFrom("user_file")
+                .all()
+                .whereColumn("uid").isEqualTo(literal(314))
+                .whereColumn("id")
+                .isGreaterThan(function("\"token\"", literal(271)))
+                .limit(100)
+                .build();
+        var cql = statement.getQuery();
+        log.info(cql);
+
+        statement = selectFrom("share_file")
+                .all()
+                .whereColumn("uid").isEqualTo(literal(314))
+                .whereColumn(CqlIdentifier.fromInternal("token(id)"))
+                .isGreaterThan(function("\"token\"", literal(271)))
+                .limit(100)
+                .build();
+        cql = statement.getQuery();
         log.info(cql);
     }
 

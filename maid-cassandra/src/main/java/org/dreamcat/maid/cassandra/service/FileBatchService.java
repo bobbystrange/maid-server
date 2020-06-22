@@ -11,8 +11,9 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
-import static com.datastax.driver.core.querybuilder.QueryBuilder.select;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.literal;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
+
 
 /**
  * Create by tuke on 2020/5/31
@@ -27,17 +28,17 @@ public class FileBatchService {
 
     public void deleteAllShareFile(long uid) {
         var fetchSize = properties.getFetchSize();
+        var stmt = selectFrom("share_file")
+                .columns("id")
+                .whereColumn("uid").isEqualTo(literal(uid))
+                .build()
+                .setPageSize(fetchSize);
 
-        var stmt = select("id")
-                .from("share_file")
-                .where(eq("uid", uid));
-        stmt.setFetchSize(fetchSize);
         var rs = cassandraTemplate.getCqlOperations().queryForResultSet(stmt);
         var iter = rs.iterator();
 
         List<Long> ids = new ArrayList<>(fetchSize);
         while (!rs.isFullyFetched()) {
-            rs.fetchMoreResults();
             var row = iter.next();
             var id = row.getLong(0);
 

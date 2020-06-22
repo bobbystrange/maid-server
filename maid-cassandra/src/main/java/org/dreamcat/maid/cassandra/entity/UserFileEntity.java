@@ -29,6 +29,7 @@ public class UserFileEntity {
 
     private Long ctime;
     private Long mtime;
+    @Indexed
     private String digest;
     private String type;
     private Long size;

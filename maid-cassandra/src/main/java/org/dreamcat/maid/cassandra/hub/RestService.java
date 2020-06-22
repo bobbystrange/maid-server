@@ -51,14 +51,14 @@ public class RestService {
         return queryMap;
     }
 
-    private Map<String, Object> newDownLoadQueryMap(String digest, String filename, String type, boolean asAttachment) {
+    private Map<String, Object> newDownLoadQueryMap(String digest, String filename, String type, boolean attachment) {
         var query = new DownloadQuery();
         query.setDigest(digest);
         query.setTimestamp(System.currentTimeMillis());
         query.setNonce(RandomUtil.randi(1 << 16));
         query.setFilename(filename);
         query.setType(type);
-        query.setAsAttachment(asAttachment);
+        query.setAttachment(attachment);
 
         var queryMap = BeanMapUtil.toMap(query);
         var rawStr = UrlUtil.toSortedQueryString(queryMap);

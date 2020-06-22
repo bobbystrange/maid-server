@@ -14,9 +14,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.Arrays;
 
-import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
-import static com.datastax.driver.core.querybuilder.QueryBuilder.select;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.literal;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
 
 /**
  * Create by tuke on 2020/6/7
@@ -68,19 +69,28 @@ public class CopyUserFileTask {
         if (commonService.isFile(fromFile)) return;
 
         var fetchSize = properties.getFetchSize();
-        var stmt = select("id")
-                .from("user_file")
-                .where(eq("uid", uid)).and(eq("pid", fromFid));
-        stmt.setFetchSize(fetchSize);
-        var rs = cassandraTemplate.getCqlOperations().queryForResultSet(stmt);
+        var statement = selectFrom("user_file")
+                .columns("id")
+                .whereColumn("uid").isEqualTo(literal(uid))
+                .whereColumn("pid").isEqualTo(literal(fromFid))
+                .build()
+                .setPageSize(fetchSize);
+
+        var rs = cassandraTemplate.getCqlOperations().queryForResultSet(statement);
         var iter = rs.iterator();
 
+        int offset = 0;
+        String[] buffer = new String[fetchSize];
         while (!rs.isFullyFetched()) {
-            rs.fetchMoreResults();
+            if (offset >= fetchSize) {
+                setOps.add(buffer);
+                offset = 0;
+            }
+
             var row = iter.next();
             var id = row.getLong(0);
-            setOps.add(uid + ":" + id + ":" + newFid);
+            buffer[offset++] = uid + ":" + id + ":" + newFid;
         }
-
+        if (offset > 0) setOps.add(Arrays.copyOf(buffer, offset));
     }
 }

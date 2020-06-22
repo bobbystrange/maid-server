@@ -45,6 +45,7 @@ create table if not exists user_file (
     primary key ( uid, pid, name )
 );
 create index if not exists idx_user_file_id on user_file (id);
+create index if not exists idx_user_file_digest on user_file (digest);
 
 create table if not exists share_file (
     id       bigint primary key,
@@ -54,12 +55,20 @@ create table if not exists share_file (
     ctime    bigint,
     password text,
     ttl      bigint,
+
+    -- copy from user_file
+    pid    bigint,
+    name   text,
+    digest text,
+    type   text,
+    size   bigint,
 );
 create index if not exists idx_share_file_uid on share_file (uid);
 create index if not exists idx_share_file_fid on share_file (fid);
 
 create table if not exists id_generator (
-    id bigint primary key
+    id bigint primary key,
+    app_id text,
 );
 
 

@@ -54,25 +54,13 @@ begin batch
     values (43447782765232128, 1, 'new_b', 2, 1584774807901, 1584774807901) if not exists;
 apply batch;
 
-
-
 -- copy /a/new_b to /a/new_b_copy
-insert into user_file(pid, name, id, ctime, mtime)
-values ('2', 'new_b_copy', '4', 1584774807901, 1584774807901) if not exists;
-
-select * from user_file where pid = '3';
-
--- remove
-begin batch
-    delete from user_file where id = 'x';
-    delete from user_file where id = 'y';
-apply batch;
+insert into user_file(uid, pid, name, id, ctime, mtime)
+values (43447782765232128, 1, 'new_b_copy', 7, 1584774807901, 1584774807901) if not exists;
 
 -- pageable
-select * from user_file where token(pid) >= token('2') limit 2;
-
 
 -- atomic
 select * from id_generator;
-insert into id_generator(id) values (1) if not exists;
+insert into id_generator(id, app_id) values (1, 'a') if not exists;
 

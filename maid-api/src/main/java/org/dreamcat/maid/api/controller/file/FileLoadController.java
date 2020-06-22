@@ -93,13 +93,13 @@ public class FileLoadController {
      * @apiParam {number} id file id
      * @apiParam {string} [password] shared file access password
      * @apiParam {number} [ttl] shared file time-to-live
-     * @apiSuccess (Success 200) {Number} code 0
-     * @apiSuccess (Success 200) {String} data share code
+     * @apiSuccess (Success 200) {number} code 0
+     * @apiSuccess (Success 200) {string} data share code
      * @apiError (Error 200 code = 1) code file is not found
      * @apiError (Error 404) {Number} code -1, path or file-instance is not found
      */
     @RequestMapping(path = "/share")
-    public Mono<RestBody<Long>> shareFile(
+    public Mono<RestBody<String>> shareFile(
             @Valid @RequestBody ShareFileQuery query,
             ServerWebExchange exchange) {
         return Mono.fromCallable(() -> service.share(query, exchange));

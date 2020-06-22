@@ -3,14 +3,17 @@ package org.dreamcat.maid.cassandra.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.exception.BreakException;
+import org.dreamcat.common.util.ObjectUtil;
 import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.common.web.exception.BadRequestException;
 import org.dreamcat.common.web.exception.ForbiddenException;
 import org.dreamcat.common.web.exception.UnauthorizedException;
 import org.dreamcat.common.webflux.security.jwt.JwtReactiveFactory;
 import org.dreamcat.maid.api.controller.file.FileInfoView;
 import org.dreamcat.maid.api.controller.file.FileItemView;
 import org.dreamcat.maid.api.controller.file.FileView;
+import org.dreamcat.maid.api.core.IdLevelQuery;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
 import org.springframework.stereotype.Service;
@@ -94,4 +97,19 @@ public class CommonService {
         return file;
     }
 
+    public String[] checkPath(String path) {
+        if (ObjectUtil.isBlank(path) ||
+                !path.startsWith("/") ||
+                path.endsWith("/") ||
+                path.length() > 1024) {
+            throw new BadRequestException("invalid path");
+        }
+
+        var names = path.split("/");
+        if (names.length > IdLevelQuery.MAX_DIR_LEVEL) {
+            throw new BadRequestException("invalid path");
+        }
+        names[0] = "/";
+        return names;
+    }
 }

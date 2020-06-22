@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.maid.api.config.AppConfig;
-import org.dreamcat.maid.api.controller.file.FileInfoView;
 import org.dreamcat.maid.api.controller.file.FileItemView;
 import org.dreamcat.maid.api.service.ShareService;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,7 +24,8 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 @RestController
-@RequestMapping(path = AppConfig.API_PREFIX + "/share")
+@RequestMapping(path = AppConfig.API_PREFIX + "/share",
+        method = RequestMethod.POST)
 public class ShareController {
     private final ShareService service;
 
@@ -47,8 +47,8 @@ public class ShareController {
      * @apiError (Error 200 code = 7) code shared path is not a dir
      * @apiPermission anonymous
      */
-    @RequestMapping(path = "/file", method = RequestMethod.GET)
-    public Mono<RestBody<FileInfoView>> file(
+    @RequestMapping(path = "/file")
+    public Mono<RestBody<ShareFileInfoView>> file(
             @Valid @RequestBody GetShareFileQuery query) {
         return Mono.fromCallable(() -> service.file(query));
     }
@@ -72,7 +72,7 @@ public class ShareController {
      * @apiError (Error 200 code = 8) code shared path has excessive subitems
      * @apiPermission anonymous
      */
-    @RequestMapping(path = "/list", method = RequestMethod.GET)
+    @RequestMapping(path = "/list")
     public Mono<RestBody<List<FileItemView>>> list(
             @Valid @RequestBody GetShareFileQuery query) {
         return Mono.fromCallable(() -> service.list(query));
@@ -97,7 +97,7 @@ public class ShareController {
      * @apiError (Error 200 code = 7) code shared path is not a file
      * @apiPermission anonymous
      */
-    @RequestMapping(path = "/download", method = RequestMethod.POST)
+    @RequestMapping(path = "/download")
     public Mono<RestBody<String>> download(
             @Valid @RequestBody GetShareFileQuery query,
             @RequestParam Boolean attachment) {

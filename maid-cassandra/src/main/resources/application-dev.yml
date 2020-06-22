@@ -8,12 +8,13 @@ spring:
       contact-points:
         - 127.0.0.1
       keyspace-name: maid
+      local-datacenter: datacenter1
   security:
     jwt:
       enable-cors: true
       secret-key: DB7A9CF3-4D9B-4526-B3A2-9E1761D8F1B8
-      # 3600 * 24 * 3
-      max-age: 259200
+      # 3600 * 24 * 365
+      max-age: 31536000
       orderly-anonymous-inspections:
         - permitted-urls:
             - /**

@@ -10,19 +10,21 @@ import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.maid.api.config.AppProperties;
 import org.dreamcat.maid.api.controller.file.FileItemView;
 import org.dreamcat.maid.api.controller.file.FileView;
+import org.dreamcat.maid.api.controller.file.IdNameView;
+import org.dreamcat.maid.api.core.IdQuery;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.dreamcat.maid.cassandra.core.RestCodes.excessive_items;
-import static org.dreamcat.maid.cassandra.core.RestCodes.excessive_subitems;
+import static org.dreamcat.maid.cassandra.core.RestCodes.*;
 
 /**
  * Create by tuke on 2020/4/14
@@ -34,17 +36,69 @@ public class FileChainService {
     private final UserFileDao userFileDao;
     private final CommonService commonService;
     private final AppProperties properties;
+    private final CacheService cacheService;
+
+    public String retrieveName(long uid, long fid) {
+        if (fid == IdQuery.ROOT_ID) return "/";
+        var pidAndName = cacheService.getPidAndName(uid, fid);
+        if (pidAndName != null) {
+            int ind = pidAndName.indexOf(':');
+            return pidAndName.substring(ind + 1);
+        }
+
+        var file = userFileDao.findById(fid);
+        if (file == null) return null;
+        if (uid != file.getUid()) return null;
+        cacheService.saveFidToPidAndName(file);
+        return file.getName();
+    }
+
+    public String retrievePath(long uid, long fid) throws BreakException {
+        if (fid == IdQuery.ROOT_ID) return "/";
+        var path = cacheService.mapFidToPath(uid, fid);
+        if (path != null) return path;
+
+        var file = userFileDao.findById(fid);
+        if (file == null) {
+            throw new BreakException(RestBody.error(fid_not_found, "fid not found"));
+        }
+        return recurseQueryPath(file);
+    }
+
+    public String retrievePath(UserFileEntity file) throws BreakException {
+        var uid = file.getUid();
+        var fid = file.getId();
+
+        if (fid == IdQuery.ROOT_ID) return "/";
+        var path = cacheService.mapFidToPath(uid, fid);
+        if (path != null) return path;
+
+        return recurseQueryPath(file);
+    }
 
     // /path/to/file_or_dir
-    public String retrievePath(UserFileEntity file) {
+    private String recurseQueryPath(UserFileEntity file) throws BreakException {
+        var uid = file.getUid();
+        var fid = file.getId();
         var name = file.getName();
-        if (name.equals("/")) {
+        if (fid == IdQuery.ROOT_ID) {
             return "/";
         }
 
+        cacheService.saveFidToPidAndName(file);
         var pid = file.getPid();
-        var parentFile = userFileDao.findById(pid);
-        var parentPath = retrievePath(parentFile);
+
+        var parentPath = cacheService.mapFidToPath(uid, pid);
+        if (parentPath == null) {
+            var parentFile = userFileDao.findById(pid);
+            // dangling user_file entity
+            if (parentFile == null) {
+                userFileDao.delete(uid, pid, name);
+                throw new BreakException(RestBody.error(fid_not_found, "fid not found"));
+            }
+            parentPath = recurseQueryPath(parentFile);
+        }
+
         if (parentPath.equals("/")) return "/" + name;
         return parentPath + "/" + name;
     }
@@ -92,6 +146,35 @@ public class FileChainService {
         for (var i : items) {
             recurseFlatDirTree(i, map);
         }
+    }
+
+    public LinkedList<IdNameView> retrieveListPath(long uid, long fid) throws BreakException {
+        if (fid == IdQuery.ROOT_ID) {
+            var list = new LinkedList<IdNameView>();
+            list.add(new IdNameView(fid, "/"));
+            return list;
+        }
+
+        Long pid;
+        String name;
+        var pidAndName = cacheService.getPidAndName(uid, fid);
+        if (pidAndName == null) {
+            var file = userFileDao.findById(fid);
+            if (file == null) {
+                throw new BreakException(RestBody.error(fid_not_found, "fid not found"));
+            }
+            pid = file.getPid();
+            name = file.getName();
+            cacheService.saveFidToPidAndName(uid, fid, pid, name);
+        } else {
+            var ind = pidAndName.indexOf(':');
+            pid = Long.parseLong(pidAndName.substring(0, ind));
+            name = pidAndName.substring(ind + 1);
+        }
+
+        var list = retrieveListPath(uid, pid);
+        list.addLast(new IdNameView(fid, name));
+        return list;
     }
 
 }

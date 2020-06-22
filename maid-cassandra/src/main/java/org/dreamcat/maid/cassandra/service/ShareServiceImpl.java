@@ -2,25 +2,28 @@ package org.dreamcat.maid.cassandra.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dreamcat.common.core.Pair;
 import org.dreamcat.common.exception.BreakException;
+import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.common.web.core.RestBody;
 import org.dreamcat.common.web.exception.BadRequestException;
 import org.dreamcat.common.web.exception.InternalServerErrorException;
-import org.dreamcat.maid.api.controller.file.FileInfoView;
 import org.dreamcat.maid.api.controller.file.FileItemView;
 import org.dreamcat.maid.api.controller.share.GetShareFileQuery;
+import org.dreamcat.maid.api.controller.share.ShareFileInfoView;
 import org.dreamcat.maid.api.service.ShareService;
 import org.dreamcat.maid.cassandra.core.RestCodes;
 import org.dreamcat.maid.cassandra.dao.ShareFileDao;
 import org.dreamcat.maid.cassandra.dao.UserFileDao;
+import org.dreamcat.maid.cassandra.entity.ShareFileEntity;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
 import org.dreamcat.maid.cassandra.hub.InstanceService;
 import org.dreamcat.maid.cassandra.hub.RestService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.dreamcat.maid.cassandra.core.RestCodes.*;
@@ -35,26 +38,35 @@ public class ShareServiceImpl implements ShareService {
     private final UserFileDao userFileDao;
     private final ShareFileDao shareFileDao;
     private final CommonService commonService;
-    private final PasswordEncoder passwordEncoder;
     private final InstanceService instanceService;
     private final RestService restService;
 
     @Override
-    public RestBody<FileInfoView> file(GetShareFileQuery query) {
+    public RestBody<ShareFileInfoView> file(GetShareFileQuery query) {
         UserFileEntity file;
+        ShareFileEntity shareFile;
         try {
-            file = locate(query);
+            var pair = locate(query);
+            shareFile = pair.first();
+            file = pair.second();
         } catch (BreakException e) {
             return e.getData();
         }
-        return RestBody.ok(commonService.toFileInfoView(file));
+        var view = BeanCopierUtil.copy(file, ShareFileInfoView.class);
+        if (commonService.isDirectory(file)) {
+            long count = userFileDao.countByPid(file.getUid(), file.getId());
+            view.setCount(count);
+        }
+        view.setTtl(shareFile.getTtl());
+        view.setStime(shareFile.getCtime());
+        return RestBody.ok(view);
     }
 
     @Override
     public RestBody<List<FileItemView>> list(GetShareFileQuery query) {
         UserFileEntity dir;
         try {
-            dir = locate(query);
+            dir = locate(query).second();
         } catch (BreakException e) {
             return e.getData();
         }
@@ -79,7 +91,7 @@ public class ShareServiceImpl implements ShareService {
     public RestBody<String> download(GetShareFileQuery query, boolean attachment) {
         UserFileEntity file;
         try {
-            file = locate(query);
+            file = locate(query).second();
         } catch (BreakException e) {
             return e.getData();
         }
@@ -105,30 +117,32 @@ public class ShareServiceImpl implements ShareService {
 
     }
 
-    private UserFileEntity locate(GetShareFileQuery query) throws BreakException {
+    private Pair<ShareFileEntity, UserFileEntity> locate(GetShareFileQuery query) throws BreakException {
         var sid = query.getSid();
         var password = query.getPassword();
         var path = query.getPath();
 
-        var userFile = checkSid(sid, password);
-        if (path == null) {
-            return userFile;
+        var pair = checkSid(sid, password);
+        var shareFile = pair.first();
+        var userFile = pair.second();
+        if (path != null) {
+            userFile = checkPath(userFile, path);
         }
-        return checkPath(userFile, path);
+        return new Pair<>(shareFile, userFile);
     }
 
-    private UserFileEntity checkSid(long sid, String password) throws BreakException {
+    private Pair<ShareFileEntity, UserFileEntity> checkSid(long sid, String password) throws BreakException {
         var shareFile = shareFileDao.findById(sid);
         if (shareFile == null) {
             throw new BreakException(RestBody.error(sid_not_found, "sid not found"));
         }
-        String encodedPassword = shareFile.getPassword();
-        if (encodedPassword != null) {
+        String rawPassword = shareFile.getPassword();
+        if (rawPassword != null) {
             if (password == null) {
                 throw new BreakException(RestBody.error(sid_require_password, "sid require password"));
             }
 
-            if (!passwordEncoder.matches(password, encodedPassword)) {
+            if (!Objects.equals(password, rawPassword)) {
                 throw new BreakException(RestBody.error(sid_wrong_password, "sid wrong password"));
             }
         }
@@ -143,11 +157,12 @@ public class ShareServiceImpl implements ShareService {
 
         var fid = shareFile.getFid();
         var userFile = userFileDao.findById(fid);
-        if (userFile == null) {
+        if (userFile == null || !Objects.equals(userFile.getName(), shareFile.getName())) {
             shareFileDao.deleteById(sid);
+            // already renamed or removed
             throw new BreakException(RestBody.error(sid_already_invalid, "sid already invalid"));
         }
-        return userFile;
+        return new Pair<>(shareFile, userFile);
     }
 
     private UserFileEntity checkPath(UserFileEntity root, String path) throws BreakException {

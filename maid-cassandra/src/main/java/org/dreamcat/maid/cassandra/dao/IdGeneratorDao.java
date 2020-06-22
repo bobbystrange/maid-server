@@ -14,10 +14,12 @@ import org.springframework.stereotype.Repository;
 public class IdGeneratorDao {
     private final CassandraTemplate cassandraTemplate;
 
-    public long nextWorkId(long id) {
+    public long nextWorkId(long id, String appId) {
         var entity = new IdGeneratorEntity();
         entity.setId(id);
+        entity.setAppId(appId);
         var res = cassandraTemplate.insert(entity, InsertOptions.builder()
+                .ttl(31_415)
                 .withIfNotExists()
                 .build());
         if (res.wasApplied()) {
@@ -25,5 +27,9 @@ public class IdGeneratorDao {
         } else {
             return res.getEntity().getId();
         }
+    }
+
+    public IdGeneratorEntity find(long id) {
+        return cassandraTemplate.selectOneById(id, IdGeneratorEntity.class);
     }
 }

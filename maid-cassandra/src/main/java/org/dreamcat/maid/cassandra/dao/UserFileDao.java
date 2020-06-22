@@ -1,6 +1,7 @@
 package org.dreamcat.maid.cassandra.dao;
 
 import lombok.RequiredArgsConstructor;
+import org.dreamcat.common.core.Pair;
 import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.maid.cassandra.entity.UserFileEntity;
 import org.springframework.dao.DataAccessException;
@@ -15,6 +16,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.literal;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
+
 /**
  * Create by tuke on 2020/3/17
  */
@@ -22,6 +26,23 @@ import java.util.List;
 @Repository
 public class UserFileDao {
     private final CassandraTemplate cassandraTemplate;
+
+    public Long findId(long uid, long pid, String name) {
+        var statement = selectFrom("user_file").columns("id")
+                .whereColumn("uid").isEqualTo(literal(uid))
+                .whereColumn("pid").isEqualTo(literal(pid))
+                .whereColumn("name").isEqualTo(literal(name))
+                .build();
+        return cassandraTemplate.getCqlOperations().queryForObject(statement, Long.class);
+    }
+
+    public Pair<Long, String> findPidAndNameById(long id) {
+        var statement = selectFrom("user_file").columns("pid", "name")
+                .whereColumn("id").isEqualTo(literal(id))
+                .build();
+        return cassandraTemplate.getCqlOperations().queryForObject(statement,
+                (row, rowNum) -> new Pair<>(row.getLong(0), row.getString(1)));
+    }
 
     public UserFileEntity findById(long fid) {
         var query = Query.query(Criteria.where("id").is(fid));
@@ -39,7 +60,7 @@ public class UserFileDao {
         return cassandraTemplate.selectOne(query, UserFileEntity.class);
     }
 
-    public List<? extends UserFileEntity> findByPid(long uid, long pid) {
+    public List<UserFileEntity> findByPid(long uid, long pid) {
         var query = Query.query(Criteria.where("uid").is(uid))
                 .and(Criteria.where("pid").is(pid));
         return cassandraTemplate.select(query, UserFileEntity.class);
@@ -86,6 +107,25 @@ public class UserFileDao {
     public void deleteByUid(long uid) {
         var query = Query.query(Criteria.where("uid").is(uid));
         cassandraTemplate.delete(query, UserFileEntity.class);
+    }
+
+    public List<UserFileEntity> findLimit(long uid, int size) {
+        var query = Query.query(Criteria.where("uid").is(uid)).limit(size);
+        return cassandraTemplate.select(query, UserFileEntity.class);
+    }
+
+    // Note that it may have unpredictable performance.
+    public List<UserFileEntity> findLimit(long uid, int size, Long last) {
+        if (last == null) return findLimit(uid, size);
+
+        var statement = selectFrom("user_file")
+                .all()
+                .whereColumn("uid").isEqualTo(literal(uid))
+                .whereColumn("id").isGreaterThan(literal(last))
+                .limit(size)
+                .allowFiltering()
+                .build();
+        return cassandraTemplate.select(statement, UserFileEntity.class);
     }
 
     ///
