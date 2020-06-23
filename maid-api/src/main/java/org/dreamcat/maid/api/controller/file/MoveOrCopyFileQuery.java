@@ -10,8 +10,8 @@ import javax.validation.constraints.NotNull;
 @Data
 public class MoveOrCopyFileQuery {
     @NotNull
-    private Long fromId;
+    private Long source;
 
     @NotNull
-    private Long toId;
+    private Long target;
 }

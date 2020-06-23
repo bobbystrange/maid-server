@@ -2,6 +2,7 @@ package org.dreamcat.maid.cassandra.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dreamcat.common.core.Pair;
 import org.dreamcat.common.exception.BreakException;
 import org.dreamcat.common.io.FileUtil;
 import org.dreamcat.common.util.ObjectUtil;
@@ -38,19 +39,21 @@ public class FileChainService {
     private final AppProperties properties;
     private final CacheService cacheService;
 
-    public String retrieveName(long uid, long fid) {
-        if (fid == IdQuery.ROOT_ID) return "/";
+    public Pair<Long, String> retrievePidAndName(long uid, long fid) {
+        if (fid == IdQuery.ROOT_ID) return new Pair<>(null, "/");
         var pidAndName = cacheService.getPidAndName(uid, fid);
         if (pidAndName != null) {
             int ind = pidAndName.indexOf(':');
-            return pidAndName.substring(ind + 1);
+            long pid = Long.parseLong(pidAndName.substring(0, ind));
+            var name = pidAndName.substring(ind + 1);
+            return new Pair<>(pid, name);
         }
 
         var file = userFileDao.findById(fid);
         if (file == null) return null;
         if (uid != file.getUid()) return null;
         cacheService.saveFidToPidAndName(file);
-        return file.getName();
+        return new Pair<>(file.getPid(), file.getName());
     }
 
     public String retrievePath(long uid, long fid) throws BreakException {

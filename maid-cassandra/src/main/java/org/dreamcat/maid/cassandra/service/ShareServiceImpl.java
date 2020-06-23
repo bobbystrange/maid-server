@@ -6,11 +6,13 @@ import org.dreamcat.common.core.Pair;
 import org.dreamcat.common.exception.BreakException;
 import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.common.web.core.RestBody;
-import org.dreamcat.common.web.exception.BadRequestException;
+import org.dreamcat.common.web.exception.ForbiddenException;
 import org.dreamcat.common.web.exception.InternalServerErrorException;
 import org.dreamcat.maid.api.controller.file.FileItemView;
+import org.dreamcat.maid.api.controller.file.IdNameView;
 import org.dreamcat.maid.api.controller.share.GetShareFileQuery;
 import org.dreamcat.maid.api.controller.share.ShareFileInfoView;
+import org.dreamcat.maid.api.core.IdQuery;
 import org.dreamcat.maid.api.service.ShareService;
 import org.dreamcat.maid.cassandra.core.RestCodes;
 import org.dreamcat.maid.cassandra.dao.ShareFileDao;
@@ -21,7 +23,7 @@ import org.dreamcat.maid.cassandra.hub.InstanceService;
 import org.dreamcat.maid.cassandra.hub.RestService;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -38,6 +40,8 @@ public class ShareServiceImpl implements ShareService {
     private final UserFileDao userFileDao;
     private final ShareFileDao shareFileDao;
     private final CommonService commonService;
+    private final CacheService cacheService;
+    private final FileChainService fileChainService;
     private final InstanceService instanceService;
     private final RestService restService;
 
@@ -71,20 +75,43 @@ public class ShareServiceImpl implements ShareService {
             return e.getData();
         }
         if (commonService.isFile(dir)) {
-            return RestBody.error(shared_path_not_diretory, "shared fid not diretory");
+            return RestBody.error(shared_file_not_diretory, "file not diretory");
         }
-        var uid = dir.getUid();
-        var pid = dir.getId();
+        long uid = dir.getUid();
+        long pid = dir.getId();
 
         long count = userFileDao.countByPid(uid, pid);
         if (count > 1024) {
-            return RestBody.error(sid_excessive_subitems, "sid excessive subitems");
+            return RestBody.error(sid_excessive_subitems, "excessive subitems");
         }
         var files = userFileDao.findByPid(uid, pid);
         var views = files.stream()
                 .map(commonService::toFileItemView)
                 .collect(Collectors.toList());
         return RestBody.ok(views);
+    }
+
+    @Override
+    public RestBody<List<IdNameView>> listPath(GetShareFileQuery query) {
+        var sid = query.getSid();
+        var password = query.getPassword();
+        var fid = query.getFid();
+
+        UserFileEntity root;
+        try {
+            root = checkSid(sid, password).second();
+        } catch (BreakException e) {
+            return e.getData();
+        }
+
+        long uid = root.getUid();
+        if (fid == null) fid = root.getId();
+
+        try {
+            return RestBody.ok(retrieveListPath(root, uid, fid));
+        } catch (BreakException e) {
+            return e.getData();
+        }
     }
 
     @Override
@@ -96,7 +123,7 @@ public class ShareServiceImpl implements ShareService {
             return e.getData();
         }
         if (commonService.isDirectory(file)) {
-            return RestBody.error(shared_path_not_file, "shared fid not file");
+            return RestBody.error(shared_file_not_file, "file not file");
         }
 
         var digest = file.getDigest();
@@ -120,13 +147,13 @@ public class ShareServiceImpl implements ShareService {
     private Pair<ShareFileEntity, UserFileEntity> locate(GetShareFileQuery query) throws BreakException {
         var sid = query.getSid();
         var password = query.getPassword();
-        var path = query.getPath();
+        var fid = query.getFid();
 
         var pair = checkSid(sid, password);
         var shareFile = pair.first();
         var userFile = pair.second();
-        if (path != null) {
-            userFile = checkPath(userFile, path);
+        if (fid != null) {
+            userFile = checkFid(userFile, fid);
         }
         return new Pair<>(shareFile, userFile);
     }
@@ -165,29 +192,68 @@ public class ShareServiceImpl implements ShareService {
         return new Pair<>(shareFile, userFile);
     }
 
-    private UserFileEntity checkPath(UserFileEntity root, String path) throws BreakException {
-        if (!path.matches("^/.{0,8192}[^/]$")) {
-            throw new BadRequestException("invalid path");
+    private UserFileEntity checkFid(UserFileEntity root, long fid) throws BreakException {
+        if (root.getId() == fid) return root;
+        long uid = root.getUid();
+        long rootId = root.getId();
+
+        var file = userFileDao.findById(fid);
+        if (file == null) {
+            throw new BreakException(RestBody.error(shared_file_not_found, "file not found"));
         }
 
-        if (path.equals("/")) return root;
+        if (uid != file.getUid()) {
+            throw new ForbiddenException(insufficient_permissions, "insufficient permissions");
+        }
 
-        var uid = root.getUid();
-        var names = Arrays.stream(path.split("/"))
-                .dropWhile(String::isEmpty)
-                .collect(Collectors.toList());
+        var matched = false;
+        Long id = fid;
+        while (true) {
+            id = fileChainService.retrievePidAndName(uid, id).first();
+            if (id == null) break;
 
-        UserFileEntity file = root;
-        for (String name : names) {
-            if (commonService.isFile(file)) {
-                throw new BreakException(RestBody.error(shared_path_not_diretory, "shared fid not diretory"));
-            }
-            file = userFileDao.find(uid, file.getId(), name);
-            if (file == null) {
-                throw new BreakException(RestBody.error(shared_path_not_found, "shared fid not found"));
+            if (rootId == id) {
+                matched = true;
+                break;
             }
         }
+
+        if (!matched) {
+            throw new BreakException(RestBody.error(shared_file_not_shared, "file not shared"));
+        }
+
         return file;
     }
 
+    private LinkedList<IdNameView> retrieveListPath(UserFileEntity root, long uid, long fid) throws BreakException {
+        if (fid == root.getId()) {
+            var list = new LinkedList<IdNameView>();
+            list.add(new IdNameView(fid, "/"));
+            return list;
+        }
+        if (fid == IdQuery.ROOT_ID) {
+            throw new BreakException(RestBody.error(shared_file_not_shared, "file not shared"));
+        }
+
+        Long pid;
+        String name;
+        var pidAndName = cacheService.getPidAndName(uid, fid);
+        if (pidAndName == null) {
+            var file = userFileDao.findById(fid);
+            if (file == null) {
+                throw new BreakException(RestBody.error(shared_file_not_found, "file not found"));
+            }
+            pid = file.getPid();
+            name = file.getName();
+            cacheService.saveFidToPidAndName(uid, fid, pid, name);
+        } else {
+            var ind = pidAndName.indexOf(':');
+            pid = Long.parseLong(pidAndName.substring(0, ind));
+            name = pidAndName.substring(ind + 1);
+        }
+
+        var list = retrieveListPath(root, uid, pid);
+        list.addLast(new IdNameView(fid, name));
+        return list;
+    }
 }

@@ -41,10 +41,11 @@ public abstract class RestCodes {
     public static final int sid_wrong_password = 3;
     public static final int expired_sid = 4;
     public static final int sid_already_invalid = 5;
-    public static final int shared_path_not_found = 6;
-    public static final int shared_path_not_file = 7;
-    public static final int shared_path_not_diretory = 7;
-    public static final int sid_excessive_subitems = 8;
+    public static final int shared_file_not_found = 6;
+    public static final int shared_file_not_shared = 7;
+    public static final int shared_file_not_file = 8;
+    public static final int shared_file_not_diretory = 8;
+    public static final int sid_excessive_subitems = 9;
 
     /// user
     public static final int user_not_found = 1;

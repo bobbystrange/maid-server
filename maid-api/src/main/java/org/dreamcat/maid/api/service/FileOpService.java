@@ -15,10 +15,10 @@ public interface FileOpService {
     RestBody<?> rename(long fid, String name, ServerWebExchange exchange);
 
     // mv
-    RestBody<?> move(long fromId, long toId, ServerWebExchange exchange);
+    RestBody<?> move(long source, long target, ServerWebExchange exchange);
 
     // cp
-    RestBody<?> copy(long fromId, long toId, ServerWebExchange exchange);
+    RestBody<?> copy(long source, long target, ServerWebExchange exchange);
 
     // rm
     RestBody<?> remove(long fid, ServerWebExchange exchange);

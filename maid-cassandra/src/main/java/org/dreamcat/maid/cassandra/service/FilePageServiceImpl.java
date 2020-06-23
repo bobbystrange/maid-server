@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.dreamcat.common.function.TriFunction;
 import org.dreamcat.common.web.asm.BeanCopierUtil;
 import org.dreamcat.common.web.core.RestBody;
+import org.dreamcat.common.web.exception.BadRequestException;
 import org.dreamcat.maid.api.controller.file.FileItemView;
+import org.dreamcat.maid.api.controller.page.Category;
 import org.dreamcat.maid.api.controller.page.CategoryQuery;
 import org.dreamcat.maid.api.controller.page.ShareItemView;
 import org.dreamcat.maid.api.core.LastPageQuery;
@@ -39,6 +41,10 @@ public class FilePageServiceImpl implements FilePageService {
     @Override
     public RestBody<LastPageView<FileItemView>> category(CategoryQuery query, ServerWebExchange exchange) {
         var category = query.getCategory();
+        if (Category.UNKNOWN.equals(category)) {
+            throw new BadRequestException("invalid category");
+        }
+
         var view = fetchPage(query, exchange,
                 userFileDao::findLimit,
                 it -> commonService.isFile(it) && category.belongs(it.getType()),

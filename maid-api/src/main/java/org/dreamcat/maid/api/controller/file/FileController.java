@@ -36,14 +36,14 @@ public class FileController {
      * <pre>
      * @api {get} /file/path Get path by file id
      * @apiDescription Get path by file id
-     * @apiName PathFile
+     * @apiName Path
      * @apiGroup File
-     * @apiParam {number} id file id
-     * @apiSuccess (Success 200 code = 0) {string} data file path, look like /a/b/c/d
-     * @apiError (Error 200 code = 1) code file is not found
+     * @apiParam {string} id file id
+     * @apiSuccess {string} data file path, look like /a/b/c/d
+     * @apiError (Error 200 code = 1) {number} code file is not found
      * @apiParamExample {json} Request-Example:
      * {
-     *     "id": 0
+     *     "id": "0"
      * }
      * @apiSuccessExample {json} Success-Response:
      * {
@@ -55,7 +55,7 @@ public class FileController {
      *     "code": 1,
      *     "message": "fid not found"
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/path"})
@@ -67,30 +67,30 @@ public class FileController {
 
     /**
      * <pre>
-     * @api {get} /file/file File file or directory
-     * @apiDescription Get file information, like `file` in Unix-like
-     * @apiName FileFile
+     * @api {get} /file/file Get file information
+     * @apiDescription Get Get file information, like `file` in Unix-like
+     * @apiName File
      * @apiGroup File
-     * @apiParam {number} id file id
-     * @apiSuccess (Success 200 code = 0) {number} id file id
-     * @apiSuccess (Success 200 code = 0) {number} pid parent file id
-     * @apiSuccess (Success 200 code = 0) {string} name file base name
-     * @apiSuccess (Success 200 code = 0) {number} ctime created time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {number} mtime modified time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {number} [count] file subitems count
-     * @apiSuccess (Success 200 code = 0) {string} [type] file type, in mime type
-     * @apiSuccess (Success 200 code = 0) {number} [size] file size, in bytes
-     * @apiError (Error 200 code = 1) code file is not found
+     * @apiParam {string} id file id
+     * @apiSuccess {string} id file id
+     * @apiSuccess {string} pid parent file id
+     * @apiSuccess {string} name file base name
+     * @apiSuccess {number} ctime created time, in milliseconds
+     * @apiSuccess {number} mtime modified time, in milliseconds
+     * @apiSuccess {number} [count] file subitems count
+     * @apiSuccess {string} [type] file type, in mime type
+     * @apiSuccess {number} [size] file size, in bytes
+     * @apiError (Error 200 code = 1) {number} code file is not found
      * @apiParamExample {json} Request-Example:
      * {
-     *     "id": 2
+     *     "id": "2"
      * }
      * @apiSuccessExample {json} Success-Response in file case:
      * {
      *     "code": 0,
      *     "data": {
-     *         "id": 2,
-     *         "pid": 1,
+     *         "id": "2",
+     *         "pid": "1",
      *         "name": "sample.mp4",
      *         "ctime": 1588166983066,
      *         "mtime": 1588166983066,
@@ -102,8 +102,8 @@ public class FileController {
      * {
      *     "code": 0,
      *     "data": {
-     *         "id": 2,
-     *         "pid": 1,
+     *         "id": "2",
+     *         "pid": "1",
      *         "name": "Downloads",
      *         "ctime": 1588166983066,
      *         "mtime": 1588166983066,
@@ -115,7 +115,7 @@ public class FileController {
      *     "code": 1,
      *     "message": "file not found"
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/file"})
@@ -127,28 +127,28 @@ public class FileController {
 
     /**
      * <pre>
-     * @api {get} /file/(list|ls) List directory
+     * @api {get} /file/(list|ls) List a directory
      * @apiDescription List a specified directory, like `ls`
-     * @apiName ListFile
+     * @apiName List
      * @apiGroup File
-     * @apiParam {number} id file id
-     * @apiSuccess (Success 200 code = 0) {number} id file id
-     * @apiSuccess (Success 200 code = 0) {number} pid parent file id
-     * @apiSuccess (Success 200 code = 0) {string} name file base name
-     * @apiSuccess (Success 200 code = 0) {number} ctime created time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {number} mtime modified time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {string} [type] file type, in mime type
-     * @apiSuccess (Success 200 code = 0) {number} [size] file size, in bytes
-     * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 2) code file is not a diretory
-     * @apiError (Error 200 code = 3) code file has excessive subitems
+     * @apiParam {string} id file id
+     * @apiSuccess {string} id file id
+     * @apiSuccess {string} pid parent file id
+     * @apiSuccess {string} name file base name
+     * @apiSuccess {number} ctime created time, in milliseconds
+     * @apiSuccess {number} mtime modified time, in milliseconds
+     * @apiSuccess {string} [type] file type, in mime type
+     * @apiSuccess {number} [size] file size, in bytes
+     * @apiError (Error 200 code = 1) {number} code file is not found
+     * @apiError (Error 200 code = 2) {number} code file is not a diretory
+     * @apiError (Error 200 code = 3) {number} code file has excessive subitems
      * @apiSuccessExample {json} Success-Response:
      * {
      *     "code": 0,
      *     "data": [
      *         {
-     *             "id": 2,
-     *             "pid": 1,
+     *             "id": "2",
+     *             "pid": "1",
      *             "name": "filename",
      *             "ctime": 1588166983066,
      *             "mtime": 1588166983066,
@@ -156,15 +156,15 @@ public class FileController {
      *             "size": 1024,
      *         },
      *         {
-     *             "id": 3,
-     *             "pid": 1,
+     *             "id": "3",
+     *             "pid": "1",
      *             "name": "folder_name",
      *             "ctime": 1588166983066,
      *             "mtime": 1588166983066,
      *         },
      *     ]
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/list", "/ls"})
@@ -176,22 +176,22 @@ public class FileController {
 
     /**
      * <pre>
-     * @api {get} /file/(list|ls)/page List page directory
-     * @apiDescription List page a specified directory, error code like `path`
-     * @apiName ListPageFile
+     * @api {get} /file/(list|ls)/page List a directory by page
+     * @apiDescription List a specified directory by page
+     * @apiName ListPage
      * @apiGroup File
-     * @apiParam {number} id file id
-     * @apiParam {string} last last file name, null means first page
+     * @apiParam {string} id file id
+     * @apiParam {string} [last] last `file name`, `null` means first page
      * @apiParam {number} size page size, max value is 1024
-     * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 2) code file is not a diretory
+     * @apiError (Error 200 code = 1) {number} code file is not found
+     * @apiError (Error 200 code = 2) {number} code file is not a directory
      * @apiSuccessExample {json} Success-Response:
      * {
      *     "code": 0,
      *     "data": [
      *         {
-     *             "id": 2,
-     *             "pid": 1,
+     *             "id": "2",
+     *             "pid": "1",
      *             "name": "filename",
      *             "ctime": 1588166983066,
      *             "mtime": 1588166983066,
@@ -199,15 +199,15 @@ public class FileController {
      *             "size": 1024,
      *         },
      *         {
-     *             "id": 3,
-     *             "pid": 1,
+     *             "id": "3",
+     *             "pid": "1",
      *             "name": "folder_name",
      *             "ctime": 1588166983066,
      *             "mtime": 1588166983066,
      *         },
      *     ]
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/list/page", "/ls/page"})
@@ -219,31 +219,31 @@ public class FileController {
 
     /**
      * <pre>
-     * @api {get} /file/(list|ls)/path List path directory
-     * @apiDescription List path a specified directory, error code like `path`
-     * @apiName ListPageFile
+     * @api {get} /file/(list|ls)/path List a path chain
+     * @apiDescription List a path chain
+     * @apiName ListPath
      * @apiGroup File
-     * @apiParam {number} id file id
-     * @apiError (Error 200 code = 1) code file is not found
+     * @apiParam {string} id file id
+     * @apiError (Error 200 code = 1) {number} code file is not found
      * @apiSuccessExample {json} Success-Response:
      * {
      *     "code": 0,
      *     "data": [
      *         {
-     *             "id": 0,
+     *             "id": "0",
      *             "name": "/",
      *         },
      *         {
-     *             "id": 3,
+     *             "id": "3",
      *             "name": "folder_name",
      *         },
      *         {
-     *             "id": 5,
+     *             "id": "5",
      *             "name": "filename",
      *         }
      *     ]
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/list/path", "/ls/path"})
@@ -255,43 +255,43 @@ public class FileController {
 
     /**
      * <pre>
-     * @api {get} /file/tree Tree directory
-     * @apiDescription List a specified directory tree, like `tree`
-     * @apiName TreeFile
+     * @api {get} /file/tree Get a directory tree
+     * @apiDescription Get a directory tree, like `tree`
+     * @apiName Tree
      * @apiGroup File
-     * @apiParam {number} id file id
-     * @apiSuccess (Success 200 code = 0) {string} path file path, root directory is '/'
-     * @apiSuccess (Success 200 code = 0) {number} id file id
-     * @apiSuccess (Success 200 code = 0) {number} pid parent file id
-     * @apiSuccess (Success 200 code = 0) {string} name file base name
-     * @apiSuccess (Success 200 code = 0) {number} ctime created time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {number} mtime modified time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {string} [type] file type, in mime type
-     * @apiSuccess (Success 200 code = 0) {number} [size] file size, in bytes
-     * @apiSuccess (Success 200 code = 0) {array} [items] sub items
-     * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 2) code file is not a diretory
-     * @apiError (Error 200 code = 3) code file has excessive subitems
-     * @apiError (Error 200 code = 4) code dir tree has excessive items
+     * @apiParam {string} id file id
+     * @apiSuccess {string} path file path, root directory is '/'
+     * @apiSuccess {string} id file id
+     * @apiSuccess {string} pid parent file id
+     * @apiSuccess {string} name file base name
+     * @apiSuccess {number} ctime created time, in milliseconds
+     * @apiSuccess {number} mtime modified time, in milliseconds
+     * @apiSuccess {string} [type] file type, in mime type
+     * @apiSuccess {number} [size] file size, in bytes
+     * @apiSuccess {Array} [items] sub items
+     * @apiError (Error 200 code = 1) {number} code file is not found
+     * @apiError (Error 200 code = 2) {number} code file is not a directory
+     * @apiError (Error 200 code = 3) {number} code file has excessive sub items
+     * @apiError (Error 200 code = 4) {number} code dir tree has excessive items
      * @apiParamExample {json} Request-Example:
      * {
-     *     "id": 2,
+     *     "id": "2",
      *     "level": 3
      * }
-     * @apiSuccessExample (Success 200 code = 0) {json} Success-Response:
+     * @apiSuccessExample {json} Success-Response:
      * {
      *     "code": 0,
      *     "data": {
-     *         "id": 2,
-     *         "pid": 1,
+     *         "id": "2",
+     *         "pid": "1",
      *         "path": "/path/to/folder_name",
      *         "name": "folder_name"
      *         "ctime": 1588166983066,
      *         "mtime": 1588166983066,
      *         "items": [
      *             {
-     *                 "id": 3,
-     *                 "pid": 2,
+     *                 "id": "3",
+     *                 "pid": "2",
      *                 "path": "/path/to/folder_name/filename",
      *                 "name": "filename"
      *                 "ctime": 1588166983066,
@@ -302,7 +302,7 @@ public class FileController {
      *         ]
      *     },
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/tree"})
@@ -314,26 +314,26 @@ public class FileController {
 
     /**
      * <pre>
-     * @api {get} /file/flat/tree Tree flat directory
-     * @apiDescription List a specified flat directory tree, `error code` is same as `tree`
-     * @apiName FlatTreeFile
+     * @api {get} /file/flat/tree Get a flat tree directory
+     * @apiDescription Get a flat tree directory, `error code` is same as `tree`
+     * @apiName FlatTree
      * @apiGroup File
-     * @apiParam {number} id file id
-     * @apiSuccess (Success 200 code = 0) {number} id file id
-     * @apiSuccess (Success 200 code = 0) {number} pid parent file id
-     * @apiSuccess (Success 200 code = 0) {string} name file base name
-     * @apiSuccess (Success 200 code = 0) {number} ctime created time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {number} mtime modified time, in milliseconds
-     * @apiSuccess (Success 200 code = 0) {string} [type] file type, in mime type
-     * @apiSuccess (Success 200 code = 0) {number} [size] file size, in bytes
+     * @apiParam {string} id file id
+     * @apiSuccess {string} id file id
+     * @apiSuccess {string} pid parent file id
+     * @apiSuccess {string} name file base name
+     * @apiSuccess {number} ctime created time, in milliseconds
+     * @apiSuccess {number} mtime modified time, in milliseconds
+     * @apiSuccess {string} [type] file type, in mime type
+     * @apiSuccess {number} [size] file size, in bytes
      * @apiSuccessExample {json} Success-Response:
      * {
      *     "code": 0,
      *     "data": {
      *         "/path/to/folder_name": [
      *             {
-     *                 "id": 3,
-     *                 "pid": 1,
+     *                 "id": "3",
+     *                 "pid": "1",
      *                 "name": "filename",
      *                 "ctime": 1588166983066,
      *                 "mtime": 1588166983066,
@@ -343,7 +343,7 @@ public class FileController {
      *         ]
      *     }
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/flat/tree"})

@@ -29,17 +29,16 @@ public class FileLoadController {
     private final FileLoadService service;
 
     /**
-     * @api {post} /file/upload Upload file
-     * @apiDescription Upload a file to specified directory
-     * @apiName UploadFile
+     * @api {post} /file/upload Upload a file
+     * @apiDescription Upload a file to a specified directory
+     * @apiName Upload
      * @apiGroup FileLoad
      * @apiParam {number} id file id, in `query parameter`
      * @apiParam {File} file in `multipart/form-data`
-     * @apiSuccess (Success 200 code = 0) {Number} code
-     * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 2) code file is not a diretory
-     * @apiError (Error 200 code = 3) code upload failed, the diretory maybe deleted during uploading
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 200 code = 1) {number} code file is not found
+     * @apiError (Error 200 code = 2) {number} code file is not a directory
+     * @apiError (Error 200 code = 3) {number} code upload failed, the directory maybe deleted during uploading
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      */
     @RequestMapping(path = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public Mono<RestBody<?>> uploadFile(
@@ -61,20 +60,19 @@ public class FileLoadController {
      * <pre>
      * @api {post} /file/download Download file
      * @apiDescription Download a file by file id
-     * @apiName DownloadFile
+     * @apiName Download
      * @apiGroup FileLoad
      * @apiParam {number} id file id, in `query parameter`
      * @apiParam {boolean} [attachment] true to add download header, in `query parameter`
-     * @apiSuccess (Success 200) {number} code 0
-     * @apiSuccess (Success 200) {string} data download url
-     * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 200 code = 2) code file is not a file
+     * @apiSuccess {string} data download url
+     * @apiError (Error 200 code = 1) {number} code file is not found
+     * @apiError (Error 200 code = 2) {number} code file is not a file
      * @apiSuccessExample {json} Success-Response:
      * {
      *      "code": 0,
      *      "data": "http://..."
      * }
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = "/download")
@@ -86,17 +84,16 @@ public class FileLoadController {
     }
 
     /**
-     * @api {post} /file/share Share file or directory
+     * @api {post} /file/share Share s file or directory
      * @apiDescription Share a file or directory by file path
-     * @apiName ShareFile
+     * @apiName Share
      * @apiGroup FileLoad
-     * @apiParam {number} id file id
+     * @apiParam {string} id file id
      * @apiParam {string} [password] shared file access password
-     * @apiParam {number} [ttl] shared file time-to-live
-     * @apiSuccess (Success 200) {number} code 0
-     * @apiSuccess (Success 200) {string} data share code
-     * @apiError (Error 200 code = 1) code file is not found
-     * @apiError (Error 404) {Number} code -1, path or file-instance is not found
+     * @apiParam {number} [ttl] shared file time-to-live, unit is second
+     * @apiSuccess {string} data share code
+     * @apiError (Error 200 code = 1) {number} code file is not found
+     * @apiError (Error 404) {number} code -1, path or file-instance is not found
      */
     @RequestMapping(path = "/share")
     public Mono<RestBody<String>> shareFile(

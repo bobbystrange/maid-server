@@ -19,6 +19,7 @@ public class GetShareFileQuery {
     @JsonDeserialize(using = JacksonUtil.LongDeserializer.class)
     private Long sid;
     private String password;
-    // null if sid is a file, else like '/path/to/file_or_dir'
-    private String path;
+    // null if sid is a file
+    @JsonDeserialize(using = JacksonUtil.LongDeserializer.class)
+    private Long fid;
 }

@@ -27,24 +27,23 @@ public class FileOpController {
 
     /**
      * <pre>
-     * @api {post} /file/(mkdir|md) Make directory
+     * @api {post} /file/(mkdir|md) Make a directory
      * @apiDescription make a new directory, like `mkdir`
      * @apiName Mkdir
      * @apiGroup FileOp
-     * @apiParam {number} id file id
+     * @apiParam {string} id file id
      * @apiParam {string} name file name, max length is 1023, include / to create intermediate directories, max level is 128
-     * @apiSuccess (Success 200) code 0
-     * @apiError (Error 200 code = 1) code file not found
-     * @apiError (Error 200 code = 2) code name already exists
-     * @apiError (Error 200 code = 2) data the existing file id
-     * @apiError (Error 200 code = 3) code operation failed
+     * @apiError (Error 200 code = 1) {number} code file not found
+     * @apiError (Error 200 code = 2) {number} code name already exists
+     * @apiError (Error 200 code = 2) {string} data the existing file id
+     * @apiError (Error 200 code = 3) {number} code operation failed
      * @apiParamExample {json} Request-Example:
      * {
      *     "id": 0,
      *     "name": "a/b/c"
      * }
-     * @apiError (Error 401 code = - 1) code `JWT authorization failed, all interfaces excluding auth/share api could throw the exception`
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 401 code = - 1) {number} code `JWT authorization failed, all interfaces excluding auth/share api could throw the exception`
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      * </pre>
      */
     @RequestMapping(path = {"/mkdir", "md"})
@@ -55,19 +54,18 @@ public class FileOpController {
     }
 
     /**
-     * @api {post} /file/rename Rename file or directory
+     * @api {post} /file/rename Rename a file or directory
      * @apiDescription Rename a specified file or directory
-     * @apiName RenameFile
+     * @apiName Rename
      * @apiGroup FileOp
-     * @apiParam {number} id file id
+     * @apiParam {string} id file id
      * @apiParam {string} name file name, max length is 255
-     * @apiSuccess (Success 200) code 0
-     * @apiError (Error 200 code = 1) code file not found
-     * @apiError (Error 200 code = 2) code name already exists
-     * @apiError (Error 200 code = 3) code unsupported to rename root
-     * @apiError (Error 200 code = 4) code cannot rename to same name
-     * @apiError (Error 200 code = 5) rename failed, maybe deleted during rename
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiError (Error 200 code = 1) {number} code file not found
+     * @apiError (Error 200 code = 2) {number} code name already exists
+     * @apiError (Error 200 code = 3) {number} code unsupported to rename root
+     * @apiError (Error 200 code = 4) {number} code cannot rename to same name
+     * @apiError (Error 200 code = 5) {number} code rename failed, maybe deleted during rename
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      */
     @RequestMapping(path = {"/rename"})
     public Mono<RestBody<?>> renameFile(
@@ -77,60 +75,57 @@ public class FileOpController {
     }
 
     /**
-     * @api {post} /file/(move|mv) Move file or directory
-     * @apiDescription Move file or directory to a existing dir, like `mv`
-     * @apiName MoveFile
+     * @api {post} /file/(move|mv) Move a file or directory
+     * @apiDescription Move a file or directory to a existing dir, like `mv`
+     * @apiName Move
      * @apiGroup FileOp
-     * @apiParam {number} fromId source file or directory id
-     * @apiParam {number} toId target directory id
-     * @apiSuccess (Success 200) code 0
-     * @apiError (Error 200 code = 1) code file not found
-     * @apiError (Error 200 code = 2) code unsupported to move root
-     * @apiError (Error 200 code = 3) code target dir not found
-     * @apiError (Error 200 code = 4) code cannot move to same dir
-     * @apiError (Error 200 code = 5) code name already exists
-     * @apiError (Error 200 code = 6) code operation failed, maybe deleted during move
-     * @apiError (Error 403 code = 1) code insufficient permissions
-     * @apiError (Error 403 code = 2) code insufficient permissions for target file
+     * @apiParam {string} source source file or directory id
+     * @apiParam {string} target target directory id
+     * @apiError (Error 200 code = 1) {number} code file not found
+     * @apiError (Error 200 code = 2) {number} code unsupported to move root
+     * @apiError (Error 200 code = 3) {number} code target dir not found
+     * @apiError (Error 200 code = 4) {number} code cannot move to same dir
+     * @apiError (Error 200 code = 5) {number} code name already exists
+     * @apiError (Error 200 code = 6) {number} code operation failed, maybe deleted during move
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
+     * @apiError (Error 403 code = 2) {number} code insufficient permissions for target file
      */
     @RequestMapping(path = {"/move", "/mv"})
     public Mono<RestBody<?>> moveFile(
             @Valid @RequestBody Mono<MoveOrCopyFileQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.move(it.getFromId(), it.getToId(), exchange));
+        return query.map(it -> service.move(it.getSource(), it.getTarget(), exchange));
     }
 
     /**
-     * @api {post} /file/(move|mv) Copy file or directory
-     * @apiDescription Copy file or directory to a existing dir, like `cp`
-     * @apiName CopyFile
+     * @api {post} /file/(copy|cp) Copy a file or directory
+     * @apiDescription Copy a file or directory to a existing dir, like `cp`
+     * @apiName Copy
      * @apiGroup FileOp
-     * @apiParam {number} fromId source file or directory id
-     * @apiParam {number} toId target directory id
-     * @apiSuccess (Success 200) code 0
-     * @apiError (Error 200 code = 1) code file not found
-     * @apiError (Error 200 code = 2) code unsupported to copy root
-     * @apiError (Error 200 code = 3) code target dir not found
-     * @apiError (Error 200 code = 4) code cannot copy to same dir
-     * @apiError (Error 200 code = 5) code operation failed, maybe deleted during copy
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiParam {string} source source file or directory id
+     * @apiParam {string} target target directory id
+     * @apiError (Error 200 code = 1) {number} code file not found
+     * @apiError (Error 200 code = 2) {number} code unsupported to copy root
+     * @apiError (Error 200 code = 3) {number} code target dir not found
+     * @apiError (Error 200 code = 4) {number} code cannot copy to same dir
+     * @apiError (Error 200 code = 5) {number} code operation failed, maybe deleted during copy
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      */
     @RequestMapping(path = {"/copy", "/cp"})
     public Mono<RestBody<?>> copyFile(
             @Valid @RequestBody Mono<MoveOrCopyFileQuery> query,
             ServerWebExchange exchange) {
-        return query.map(it -> service.copy(it.getFromId(), it.getToId(), exchange));
+        return query.map(it -> service.copy(it.getSource(), it.getTarget(), exchange));
     }
 
     /**
-     * @api {post} /file/(remove|rm) Remove file or directory
-     * @apiDescription remove a specified file, like `rm`
-     * @apiName RemoveFile
+     * @api {post} /file/(remove|rm) Remove a file or directory
+     * @apiDescription Remove a specified file, like `rm`
+     * @apiName Remove
      * @apiGroup FileOp
-     * @apiParam {number} id file id
-     * @apiSuccess (Success 200) code 0
-     * @apiError (Error 200 code = 1) code file not found
-     * @apiError (Error 403 code = 1) code insufficient permissions
+     * @apiParam {string} id file id
+     * @apiError (Error 200 code = 1) {number} code file not found
+     * @apiError (Error 403 code = 1) {number} code insufficient permissions
      */
     @RequestMapping(path = {"/remove", "/rm"})
     public Mono<RestBody<?>> remove(

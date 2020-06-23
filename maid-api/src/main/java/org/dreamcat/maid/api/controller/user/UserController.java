@@ -28,9 +28,8 @@ public class UserController {
     /**
      * @api {delete} /user Delete user
      * @apiDescription it will delete all data associated the user
-     * @apiName DeleteUser
+     * @apiName Delete
      * @apiGroup User
-     * @apiSuccess (Success 200 code = 0) code 0
      * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
     @RequestMapping(method = RequestMethod.DELETE)
@@ -45,9 +44,8 @@ public class UserController {
     /**
      * @api {get} /user Get user
      * @apiDescription Get user information
-     * @apiName GetUser
+     * @apiName Get
      * @apiGroup User
-     * @apiSuccess (Success 200 code = 0) code 0
      * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
     @RequestMapping(method = RequestMethod.GET)
@@ -60,10 +58,10 @@ public class UserController {
      * @apiDescription Get avatar base64 image
      * @apiName GetAvatar
      * @apiGroup User
-     * @apiSuccess (Success 200) base64 image source
-     * @apiError (Error 404 code = 1) user has no avatar
+     * @apiSuccess base64 image source
      * @apiSuccessExample {text} Success-Response:
      * data:image/gif;base64,xxx
+     * @apiError (Error 404 code = 1) user has no avatar
      */
     @RequestMapping(path = {"/avatar"}, method = RequestMethod.GET)
     public Mono<String> getAvatar(ServerWebExchange exchange) {
@@ -73,9 +71,8 @@ public class UserController {
     /**
      * @api {put} /user Update user
      * @apiDescription Update user information
-     * @apiName UpdateUser
+     * @apiName Update
      * @apiGroup User
-     * @apiSuccess (Success 200 code = 0) code 0
      * @apiError (Error 200 code = 1) user not found, maybe deleted
      */
     @RequestMapping(method = RequestMethod.PUT, consumes = {MediaType.APPLICATION_JSON_VALUE})

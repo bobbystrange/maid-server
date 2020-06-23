@@ -19,7 +19,8 @@ public enum Category {
     Video,
     Audio,
     Torrent,
-    Other;
+    Other,
+    UNKNOWN;
 
     // http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types
     private static final List<String> extra_document_list = Arrays.asList(
@@ -58,13 +59,13 @@ public enum Category {
         @Override
         public Category deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
             var name = p.getValueAsString();
-            if (name == null) return Category.Other;
+            if (name == null) return Category.UNKNOWN;
 
             name = StringUtil.toCapital(name.toLowerCase());
             try {
                 return Category.valueOf(name);
             } catch (IllegalArgumentException e) {
-                return Category.Other;
+                return Category.UNKNOWN;
             }
         }
     }

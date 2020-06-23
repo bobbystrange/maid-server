@@ -127,10 +127,10 @@ public class FileOpServiceImpl implements FileOpService {
     }
 
     @Override
-    public RestBody<?> move(long fromId, long toId, ServerWebExchange exchange) {
+    public RestBody<?> move(long source, long target, ServerWebExchange exchange) {
         UserFileEntity file;
         try {
-            file = commonService.checkFid(fromId, exchange);
+            file = commonService.checkFid(source, exchange);
         } catch (BreakException e) {
             return e.getData();
         }
@@ -142,30 +142,30 @@ public class FileOpServiceImpl implements FileOpService {
         }
 
         try {
-            checkTargetFid(file, toId);
+            checkTargetFid(file, target);
         } catch (BreakException e) {
             return e.getData();
         }
 
-        var targetFile = userFileDao.find(uid, toId, name);
+        var targetFile = userFileDao.find(uid, target, name);
         if (targetFile != null) {
             return RestBody.error(move_name_already_exist, "name already exists");
         }
 
-        if (!userFileDao.doMove(file, toId)) {
+        if (!userFileDao.doMove(file, target)) {
             return RestBody.error(move_operation_failed, "operation failed");
         }
 
-        cacheService.saveFidToPidAndName(uid, fromId, toId, name);
+        cacheService.saveFidToPidAndName(uid, source, target, name);
         return RestBody.ok();
     }
 
     // Note that no-atomic op for copy a dir
     @Override
-    public RestBody<?> copy(long fromId, long toId, ServerWebExchange exchange) {
+    public RestBody<?> copy(long source, long target, ServerWebExchange exchange) {
         UserFileEntity file;
         try {
-            file = commonService.checkFid(fromId, exchange);
+            file = commonService.checkFid(source, exchange);
         } catch (BreakException e) {
             return e.getData();
         }
@@ -178,7 +178,7 @@ public class FileOpServiceImpl implements FileOpService {
 
         UserFileEntity dir;
         try {
-            dir = checkTargetFid(file, toId);
+            dir = checkTargetFid(file, target);
         } catch (BreakException e) {
             return e.getData();
         }
@@ -190,7 +190,7 @@ public class FileOpServiceImpl implements FileOpService {
             }
         } else {
             try {
-                copyUserFileSetOps.add(String.format("%d:%d:%d", uid, fromId, toId));
+                copyUserFileSetOps.add(String.format("%d:%d:%d", uid, source, target));
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
                 throw new InternalServerErrorException();
